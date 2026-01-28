@@ -52,7 +52,7 @@ export const taskCommand = new Command("task")
 			const spinner = ora("Starting task...").start();
 
 			// Use fetch with SSE for streaming
-			const baseUrl = api.getBaseUrl();
+			const baseUrl = await api.getBaseUrl();
 			const response = await fetch(`${baseUrl}/api/admin/mcps/${mcpId}/task`, {
 				method: "POST",
 				headers: {
