@@ -23,7 +23,9 @@ let cache: Config | null = null;
 async function load(): Promise<Config> {
 	if (cache) return cache;
 	try {
-		cache = ConfigSchema.parse(JSON.parse(await readFile(CONFIG_FILE, "utf-8")));
+		cache = ConfigSchema.parse(
+			JSON.parse(await readFile(CONFIG_FILE, "utf-8")),
+		);
 	} catch {
 		cache = ConfigSchema.parse({});
 	}
@@ -55,7 +57,9 @@ export const config = {
 	},
 
 	setDefaults: (defaults: Partial<Config["defaults"]>) => {
-		return update((cfg) => (cfg.defaults = { ...cfg.defaults, ...defaults }));
+		return update((cfg) => {
+			cfg.defaults = { ...cfg.defaults, ...defaults };
+		});
 	},
 
 	getActiveMcpId: async () => {
@@ -71,7 +75,9 @@ export const config = {
 	},
 
 	setActiveMcpId: (id: string | null) => {
-		return update((cfg) => (cfg.activeMcpId = id));
+		return update((cfg) => {
+			cfg.activeMcpId = id;
+		});
 	},
 
 	getApiUrl: async () => {
@@ -81,7 +87,9 @@ export const config = {
 	},
 
 	setApiUrl: (url: string | null) => {
-		return update((cfg) => (cfg.apiUrl = url));
+		return update((cfg) => {
+			cfg.apiUrl = url;
+		});
 	},
 
 	clear: () => {
