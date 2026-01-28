@@ -44,7 +44,7 @@ export const switchCommand = new Command("switch")
 			spinner.succeed("Organization switched");
 
 			// Clear local MCP selection since we switched orgs
-			config.setActiveMcpId(null);
+			config.setMcpId(null);
 
 			if (json) {
 				formatOutput({ switched: org }, true);

@@ -22,7 +22,7 @@ export const taskCommand = new Command("task")
 			let mcpId = options.mcpId;
 
 			if (!mcpId) {
-				mcpId = await config.getEffectiveMcpId();
+				mcpId = await config.getMcpId();
 				if (!mcpId) {
 					throw new McpError(
 						"No active MCP. Run 'waniwani init' then 'waniwani mcp use <name>'.",
@@ -37,7 +37,7 @@ export const taskCommand = new Command("task")
 				);
 			}
 
-			const defaults = await config.getEffectiveDefaults();
+			const defaults = await config.getDefaults();
 			const model = options.model ?? defaults.model;
 			const maxSteps = options.maxSteps
 				? Number.parseInt(options.maxSteps, 10)

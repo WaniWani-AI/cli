@@ -23,7 +23,7 @@ export const listCommand = new Command("list")
 
 			spinner.stop();
 
-			const activeMcpId = await config.getActiveMcpId();
+			const activeMcpId = await config.getMcpId();
 
 			if (json) {
 				formatOutput(

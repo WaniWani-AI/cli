@@ -18,7 +18,7 @@ export const statusCommand = new Command("status")
 			let mcpId = options.mcpId;
 
 			if (!mcpId) {
-				mcpId = await config.getActiveMcpId();
+				mcpId = await config.getMcpId();
 				if (!mcpId) {
 					throw new McpError(
 						"No active MCP. Run 'waniwani mcp create <name>' to create one or 'waniwani mcp use <name>' to select one.",

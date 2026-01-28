@@ -1,98 +1,92 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { loadProjectConfig } from "./project-config.js";
 
-const CONFIG_DIR = join(homedir(), ".waniwani");
-const CONFIG_FILE = join(CONFIG_DIR, "config.json");
+const LOCAL_DIR = join(process.cwd(), ".waniwani");
+const LOCAL_FILE = join(LOCAL_DIR, "settings.json");
+const GLOBAL_DIR = join(homedir(), ".waniwani");
+const GLOBAL_FILE = join(GLOBAL_DIR, "settings.json");
 const DEFAULT_API_URL = "https://app.waniwani.ai";
 
 const ConfigSchema = z.object({
 	defaults: z
 		.object({ model: z.string(), maxSteps: z.number() })
 		.default({ model: "claude-sonnet-4-20250514", maxSteps: 10 }),
-	activeMcpId: z.string().nullable().default(null),
+	mcpId: z.string().nullable().default(null),
 	apiUrl: z.string().nullable().default(null),
 });
 
-type Config = z.infer<typeof ConfigSchema>;
+type ConfigData = z.infer<typeof ConfigSchema>;
 
-let cache: Config | null = null;
+class Config {
+	private dir: string;
+	private file: string;
+	private cache: ConfigData | null = null;
+	readonly scope: "local" | "global";
 
-async function load(): Promise<Config> {
-	if (cache) return cache;
-	try {
-		cache = ConfigSchema.parse(
-			JSON.parse(await readFile(CONFIG_FILE, "utf-8")),
-		);
-	} catch {
-		cache = ConfigSchema.parse({});
+	constructor(forceGlobal = false) {
+		const useLocal = !forceGlobal && existsSync(LOCAL_DIR);
+		this.dir = useLocal ? LOCAL_DIR : GLOBAL_DIR;
+		this.file = useLocal ? LOCAL_FILE : GLOBAL_FILE;
+		this.scope = useLocal ? "local" : "global";
 	}
-	return cache;
-}
 
-async function save(cfg: Config): Promise<void> {
-	cache = cfg;
-	await mkdir(CONFIG_DIR, { recursive: true });
-	await writeFile(CONFIG_FILE, JSON.stringify(cfg, null, 2));
-}
+	private async load(): Promise<ConfigData> {
+		if (!this.cache) {
+			try {
+				this.cache = ConfigSchema.parse(
+					JSON.parse(await readFile(this.file, "utf-8")),
+				);
+			} catch {
+				this.cache = ConfigSchema.parse({});
+			}
+		}
+		return this.cache;
+	}
 
-async function update(fn: (cfg: Config) => void): Promise<void> {
-	const cfg = await load();
-	fn(cfg);
-	await save(cfg);
-}
+	private async save(data: ConfigData): Promise<void> {
+		this.cache = data;
+		await mkdir(this.dir, { recursive: true });
+		await writeFile(this.file, JSON.stringify(data, null, "\t"));
+	}
 
-export const config = {
-	getDefaults: async () => {
-		const cfg = await load();
-		return cfg.defaults;
-	},
+	async getDefaults() {
+		return (await this.load()).defaults;
+	}
 
-	getEffectiveDefaults: async () => {
-		const global = await load();
-		const project = await loadProjectConfig();
-		return { ...global.defaults, ...project?.defaults };
-	},
+	async setDefaults(defaults: Partial<ConfigData["defaults"]>) {
+		const data = await this.load();
+		data.defaults = { ...data.defaults, ...defaults };
+		await this.save(data);
+	}
 
-	setDefaults: (defaults: Partial<Config["defaults"]>) => {
-		return update((cfg) => {
-			cfg.defaults = { ...cfg.defaults, ...defaults };
-		});
-	},
+	async getMcpId() {
+		return (await this.load()).mcpId;
+	}
 
-	getActiveMcpId: async () => {
-		const cfg = await load();
-		return cfg.activeMcpId;
-	},
+	async setMcpId(id: string | null) {
+		const data = await this.load();
+		data.mcpId = id;
+		await this.save(data);
+	}
 
-	getEffectiveMcpId: async () => {
-		const project = await loadProjectConfig();
-		if (project?.mcpId) return project.mcpId;
-		const cfg = await load();
-		return cfg.activeMcpId;
-	},
-
-	setActiveMcpId: (id: string | null) => {
-		return update((cfg) => {
-			cfg.activeMcpId = id;
-		});
-	},
-
-	getApiUrl: async () => {
+	async getApiUrl() {
 		if (process.env.WANIWANI_API_URL) return process.env.WANIWANI_API_URL;
-		const cfg = await load();
-		return cfg.apiUrl || DEFAULT_API_URL;
-	},
+		return (await this.load()).apiUrl || DEFAULT_API_URL;
+	}
 
-	setApiUrl: (url: string | null) => {
-		return update((cfg) => {
-			cfg.apiUrl = url;
-		});
-	},
+	async setApiUrl(url: string | null) {
+		const data = await this.load();
+		data.apiUrl = url;
+		await this.save(data);
+	}
 
-	clear: () => {
-		return save(ConfigSchema.parse({}));
-	},
-};
+	async clear() {
+		await this.save(ConfigSchema.parse({}));
+	}
+}
+
+export const config = new Config();
+export const globalConfig = new Config(true);

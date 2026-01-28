@@ -1,13 +1,9 @@
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
+import { config, globalConfig } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import {
-	hasProjectConfig,
-	saveProjectConfig,
-} from "../../lib/project-config.js";
 import type { Mcp, McpListResponse } from "../../types/index.js";
 
 export const useCommand = new Command("use")
@@ -41,23 +37,13 @@ export const useCommand = new Command("use")
 				);
 			}
 
-			// Save to project config if in a project, otherwise global
-			const useProjectConfig = !options.global && hasProjectConfig();
-
-			if (useProjectConfig) {
-				await saveProjectConfig({ mcpId: mcp.id });
-			} else {
-				await config.setActiveMcpId(mcp.id);
-			}
+			const cfg = options.global ? globalConfig : config;
+			await cfg.setMcpId(mcp.id);
 
 			if (json) {
-				formatOutput(
-					{ selected: mcp, scope: useProjectConfig ? "project" : "global" },
-					true,
-				);
+				formatOutput({ selected: mcp, scope: cfg.scope }, true);
 			} else {
-				const scope = useProjectConfig ? "(project)" : "(global)";
-				formatSuccess(`Now using MCP "${name}" ${scope}`, false);
+				formatSuccess(`Now using MCP "${name}" (${cfg.scope})`, false);
 				console.log();
 				console.log(`  MCP ID:      ${mcp.id}`);
 				console.log(`  Preview URL: ${mcp.previewUrl}`);

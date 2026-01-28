@@ -20,7 +20,7 @@ export const deployCommand = new Command("deploy")
 			let mcpId = options.mcpId;
 
 			if (!mcpId) {
-				mcpId = await config.getActiveMcpId();
+				mcpId = await config.getMcpId();
 				if (!mcpId) {
 					throw new McpError(
 						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",

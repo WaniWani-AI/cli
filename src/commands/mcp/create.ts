@@ -1,13 +1,9 @@
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
+import { config, globalConfig } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import {
-	hasProjectConfig,
-	saveProjectConfig,
-} from "../../lib/project-config.js";
 import type { CreateMcpResponse } from "../../types/index.js";
 
 export const createCommand = new Command("create")
@@ -27,29 +23,14 @@ export const createCommand = new Command("create")
 
 			spinner.succeed("MCP sandbox created");
 
-			// Save to project config if in a project, otherwise global
-			const useProjectConfig = !options.global && hasProjectConfig();
-
-			if (useProjectConfig) {
-				await saveProjectConfig({ mcpId: result.id });
-			} else {
-				await config.setActiveMcpId(result.id);
-			}
+			const cfg = options.global ? globalConfig : config;
+			await cfg.setMcpId(result.id);
 
 			if (json) {
-				formatOutput(
-					{ ...result, scope: useProjectConfig ? "project" : "global" },
-					true,
-				);
+				formatOutput({ ...result, scope: cfg.scope }, true);
 			} else {
-				const scope = useProjectConfig
-					? "(saved to project)"
-					: "(saved globally)";
 				console.log();
-				formatSuccess(
-					`MCP sandbox "${name}" created successfully! ${scope}`,
-					false,
-				);
+				formatSuccess(`MCP sandbox "${name}" created! (${cfg.scope})`, false);
 				console.log();
 				console.log(`  MCP ID:      ${result.id}`);
 				console.log(`  Sandbox ID:  ${result.sandboxId}`);

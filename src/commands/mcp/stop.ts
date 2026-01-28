@@ -16,7 +16,7 @@ export const stopCommand = new Command("stop")
 			let mcpId = options.mcpId;
 
 			if (!mcpId) {
-				mcpId = await config.getActiveMcpId();
+				mcpId = await config.getMcpId();
 				if (!mcpId) {
 					throw new McpError("No active MCP. Use --mcp-id to specify one.");
 				}
@@ -27,8 +27,8 @@ export const stopCommand = new Command("stop")
 			spinner.succeed("MCP sandbox stopped");
 
 			// Clear active MCP if it was the one we stopped
-			if ((await config.getActiveMcpId()) === mcpId) {
-				await config.setActiveMcpId(null);
+			if ((await config.getMcpId()) === mcpId) {
+				await config.setMcpId(null);
 			}
 
 			if (json) {
