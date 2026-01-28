@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import { auth } from "../lib/auth.js";
-import { config } from "../lib/config.js";
 import { handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 
@@ -20,9 +19,8 @@ export const logoutCommand = new Command("logout")
 				return;
 			}
 
-			// Clear local auth state
+			// Clear auth tokens only (keep config like apiUrl intact)
 			await auth.clear();
-			await config.clear();
 
 			if (json) {
 				formatOutput({ success: true }, true);
