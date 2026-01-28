@@ -16,13 +16,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "rm -rf dist && npm run typecheck && npm run lint && tsup",
     "dev": "tsx --watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
-    "test": "node --test",
-    "prepublishOnly": "rm -rf dist && npm run typecheck && npm run lint && npm run build",
+    "prepublishOnly": "npm run build",
     "release": "npm version patch && npm publish --access public",
     "release:minor": "npm version minor && npm publish --access public",
     "release:major": "npm version major && npm publish --access public"
