@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -6,98 +6,85 @@ import { loadProjectConfig } from "./project-config.js";
 
 const CONFIG_DIR = join(homedir(), ".waniwani");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
+const DEFAULT_API_URL = "https://app.waniwani.ai";
 
 const ConfigSchema = z.object({
 	defaults: z
-		.object({
-			model: z.string().default("claude-sonnet-4-20250514"),
-			maxSteps: z.number().default(10),
-		})
-		.default(() => ({ model: "claude-sonnet-4-20250514", maxSteps: 10 })),
+		.object({ model: z.string(), maxSteps: z.number() })
+		.default({ model: "claude-sonnet-4-20250514", maxSteps: 10 }),
 	activeMcpId: z.string().nullable().default(null),
+	apiUrl: z.string().nullable().default(null),
 });
 
 type Config = z.infer<typeof ConfigSchema>;
 
-async function ensureConfigDir(): Promise<void> {
-	await mkdir(CONFIG_DIR, { recursive: true });
-}
+let cache: Config | null = null;
 
-async function readConfig(): Promise<Config> {
-	await ensureConfigDir();
+async function load(): Promise<Config> {
+	if (cache) return cache;
 	try {
-		await access(CONFIG_FILE);
-		const content = await readFile(CONFIG_FILE, "utf-8");
-		return ConfigSchema.parse(JSON.parse(content));
+		cache = ConfigSchema.parse(JSON.parse(await readFile(CONFIG_FILE, "utf-8")));
 	} catch {
-		return ConfigSchema.parse({});
+		cache = ConfigSchema.parse({});
 	}
+	return cache;
 }
 
-async function writeConfig(config: Config): Promise<void> {
-	await ensureConfigDir();
-	await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
+async function save(cfg: Config): Promise<void> {
+	cache = cfg;
+	await mkdir(CONFIG_DIR, { recursive: true });
+	await writeFile(CONFIG_FILE, JSON.stringify(cfg, null, 2));
 }
 
-class ConfigManager {
-	private configCache: Config | null = null;
-
-	private async getConfig(): Promise<Config> {
-		if (!this.configCache) {
-			this.configCache = await readConfig();
-		}
-		return this.configCache;
-	}
-
-	private async saveConfig(config: Config): Promise<void> {
-		this.configCache = config;
-		await writeConfig(config);
-	}
-
-	async getDefaults(): Promise<Config["defaults"]> {
-		const config = await this.getConfig();
-		return config.defaults;
-	}
-
-	async getEffectiveDefaults(): Promise<Config["defaults"]> {
-		const globalConfig = await this.getConfig();
-		const projectConfig = await loadProjectConfig();
-
-		return {
-			...globalConfig.defaults,
-			...projectConfig?.defaults,
-		};
-	}
-
-	async getEffectiveMcpId(): Promise<string | null> {
-		const projectConfig = await loadProjectConfig();
-		if (projectConfig?.mcpId) {
-			return projectConfig.mcpId;
-		}
-		return this.getActiveMcpId();
-	}
-
-	async setDefaults(defaults: Partial<Config["defaults"]>): Promise<void> {
-		const config = await this.getConfig();
-		config.defaults = { ...config.defaults, ...defaults };
-		await this.saveConfig(config);
-	}
-
-	async getActiveMcpId(): Promise<string | null> {
-		const config = await this.getConfig();
-		return config.activeMcpId;
-	}
-
-	async setActiveMcpId(id: string | null): Promise<void> {
-		const config = await this.getConfig();
-		config.activeMcpId = id;
-		await this.saveConfig(config);
-	}
-
-	async clear(): Promise<void> {
-		const emptyConfig = ConfigSchema.parse({});
-		await this.saveConfig(emptyConfig);
-	}
+async function update(fn: (cfg: Config) => void): Promise<void> {
+	const cfg = await load();
+	fn(cfg);
+	await save(cfg);
 }
 
-export const config = new ConfigManager();
+export const config = {
+	getDefaults: async () => {
+		const cfg = await load();
+		return cfg.defaults;
+	},
+
+	getEffectiveDefaults: async () => {
+		const global = await load();
+		const project = await loadProjectConfig();
+		return { ...global.defaults, ...project?.defaults };
+	},
+
+	setDefaults: (defaults: Partial<Config["defaults"]>) => {
+		return update((cfg) => (cfg.defaults = { ...cfg.defaults, ...defaults }));
+	},
+
+	getActiveMcpId: async () => {
+		const cfg = await load();
+		return cfg.activeMcpId;
+	},
+
+	getEffectiveMcpId: async () => {
+		const project = await loadProjectConfig();
+		if (project?.mcpId) return project.mcpId;
+		const cfg = await load();
+		return cfg.activeMcpId;
+	},
+
+	setActiveMcpId: (id: string | null) => {
+		return update((cfg) => (cfg.activeMcpId = id));
+	},
+
+	getApiUrl: async () => {
+		if (process.env.WANIWANI_API_URL) return process.env.WANIWANI_API_URL;
+		const cfg = await load();
+		return cfg.apiUrl || DEFAULT_API_URL;
+	},
+
+	setApiUrl: (url: string | null) => {
+		return update((cfg) => (cfg.apiUrl = url));
+	},
+
+	clear: () => {
+		return save(ConfigSchema.parse({}));
+	},
+};

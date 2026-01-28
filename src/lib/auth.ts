@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { config } from "./config.js";
 
 const CONFIG_DIR = join(homedir(), ".waniwani");
 const AUTH_FILE = join(CONFIG_DIR, "auth.json");
@@ -13,8 +14,6 @@ const AuthStoreSchema = z.object({
 });
 
 type AuthStore = z.infer<typeof AuthStoreSchema>;
-
-const API_BASE_URL = process.env.WANIWANI_API_URL || "https://waniwani.com";
 
 async function ensureConfigDir(): Promise<void> {
 	await mkdir(CONFIG_DIR, { recursive: true });
@@ -96,7 +95,8 @@ class AuthManager {
 		if (!refreshToken) return false;
 
 		try {
-			const response = await fetch(`${API_BASE_URL}/api/auth/oauth2/token`, {
+			const apiUrl = await config.getApiUrl();
+			const response = await fetch(`${apiUrl}/api/auth/oauth2/token`, {
 				method: "POST",
 				headers: { "Content-Type": "application/x-www-form-urlencoded" },
 				body: new URLSearchParams({

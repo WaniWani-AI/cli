@@ -78,24 +78,28 @@ waniwani mcp deploy
 
 The CLI stores auth tokens and settings in `~/.waniwani/`.
 
-### Environment Variables
+### API URL
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `WANIWANI_API_URL` | API base URL | `https://app.waniwani.ai` |
+The API URL can be configured in three ways (in order of priority):
 
-To connect to a different environment (e.g., self-hosted):
+1. **Environment variable**: `WANIWANI_API_URL`
+2. **Config file**: `~/.waniwani/config.json` → `apiUrl`
+3. **Default**: `https://app.waniwani.ai`
+
+#### Using environment variable
 
 ```bash
-WANIWANI_API_URL=https://another-waniwani-domain.ai waniwani login
+WANIWANI_API_URL=https://staging.waniwani.ai waniwani login
 ```
 
-Or export it for the session:
+#### Using config file
 
-```bash
-export WANIWANI_API_URL=https://staging.waniwani.com
-waniwani login
-waniwani mcp list
+Edit `~/.waniwani/config.json`:
+
+```json
+{
+  "apiUrl": "https://staging.waniwani.ai"
+}
 ```
 
 ## License

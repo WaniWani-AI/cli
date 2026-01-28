@@ -1,7 +1,6 @@
 import { auth } from "./auth.js";
+import { config } from "./config.js";
 import { AuthError, CLIError } from "./errors.js";
-
-const API_BASE_URL = process.env.WANIWANI_API_URL || "https://waniwani.com";
 
 export interface ApiResponse<T> {
 	success: boolean;
@@ -55,7 +54,8 @@ async function request<T>(
 		headers.Authorization = `Bearer ${token}`;
 	}
 
-	const url = `${API_BASE_URL}${path}`;
+	const baseUrl = await config.getApiUrl();
+	const url = `${baseUrl}${path}`;
 
 	const response = await fetch(url, {
 		method,
@@ -112,5 +112,5 @@ export const api = {
 	delete: <T>(path: string, options?: { requireAuth?: boolean }) =>
 		request<T>("DELETE", path, options),
 
-	getBaseUrl: () => API_BASE_URL,
+	getBaseUrl: () => config.getApiUrl(),
 };

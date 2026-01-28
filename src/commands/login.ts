@@ -4,11 +4,11 @@ import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { auth } from "../lib/auth.js";
+import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 import type { OAuthTokenResponse } from "../types/index.js";
 
-const API_BASE_URL = process.env.WANIWANI_API_URL || "https://waniwani.com";
 const CALLBACK_PORT = 54321;
 const CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/callback`;
 const CLIENT_ID = "waniwani-cli";
@@ -172,7 +172,8 @@ async function exchangeCodeForToken(
 	code: string,
 	codeVerifier: string,
 ): Promise<OAuthTokenResponse> {
-	const response = await fetch(`${API_BASE_URL}/api/auth/oauth2/token`, {
+	const apiUrl = await config.getApiUrl();
+	const response = await fetch(`${apiUrl}/api/auth/oauth2/token`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
@@ -230,7 +231,8 @@ export const loginCommand = new Command("login")
 			const state = generateState();
 
 			// Build authorization URL
-			const authUrl = new URL(`${API_BASE_URL}/oauth/authorize`);
+			const apiUrl = await config.getApiUrl();
+			const authUrl = new URL(`${apiUrl}/oauth/authorize`);
 			authUrl.searchParams.set("client_id", CLIENT_ID);
 			authUrl.searchParams.set("redirect_uri", CALLBACK_URL);
 			authUrl.searchParams.set("response_type", "code");
