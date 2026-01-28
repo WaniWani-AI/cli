@@ -1,61 +1,61 @@
 {
-  "name": "@waniwani/cli",
-  "version": "0.0.3",
-  "description": "WaniWani CLI for MCP development workflow",
-  "type": "module",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "bin": {
-    "waniwani": "./dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsx --watch src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check . --write",
-    "test": "node --test",
-    "prepublishOnly": "rm -rf dist && npm run typecheck && npm run lint && npm run build",
-    "publish": "npm version patch && npm publish --access public",
-    "publish:minor": "npm version minor && npm publish --access public",
-    "publish:major": "npm version major && npm publish --access public"
-  },
-  "dependencies": {
-    "chalk": "^5.4.1",
-    "commander": "^14.0.2",
-    "ora": "^9.1.0",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.3.13",
-    "@types/node": "^22.10.0",
-    "tsup": "^8.3.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/WaniWani-AI/waniwani-cli"
-  },
-  "keywords": [
-    "cli",
-    "mcp",
-    "waniwani",
-    "vercel",
-    "sandbox",
-    "claude",
-    "node",
-    "npm",
-    "pnpm",
-    "yarn"
-  ],
-  "author": "WaniWani",
-  "license": "MIT"
+	"name": "@waniwani/cli",
+	"version": "0.0.1",
+	"description": "WaniWani CLI for MCP development workflow",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"bin": {
+		"waniwani": "./dist/index.js"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsx --watch src/index.ts",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check . --write",
+		"test": "node --test",
+		"prepublishOnly": "rm -rf dist && npm run typecheck && npm run lint && npm run build",
+		"publish": "npm version patch && npm publish --access public",
+		"publish:minor": "npm version minor && npm publish --access public",
+		"publish:major": "npm version major && npm publish --access public"
+	},
+	"dependencies": {
+		"chalk": "^5.4.1",
+		"commander": "^14.0.2",
+		"ora": "^9.1.0",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.13",
+		"@types/node": "^22.10.0",
+		"tsup": "^8.3.5",
+		"tsx": "^4.19.2",
+		"typescript": "^5.7.3"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WaniWani-AI/waniwani-cli"
+	},
+	"keywords": [
+		"cli",
+		"mcp",
+		"waniwani",
+		"vercel",
+		"sandbox",
+		"claude",
+		"node",
+		"npm",
+		"pnpm",
+		"yarn"
+	],
+	"author": "WaniWani",
+	"license": "MIT"
 }
