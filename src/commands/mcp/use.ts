@@ -4,12 +4,17 @@ import { api } from "../../lib/api.js";
 import { config } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
+import {
+	hasProjectConfig,
+	saveProjectConfig,
+} from "../../lib/project-config.js";
 import type { Mcp, McpListResponse } from "../../types/index.js";
 
 export const useCommand = new Command("use")
 	.description("Select an MCP to use for subsequent commands")
 	.argument("<name>", "Name of the MCP to use")
-	.action(async (name: string, _, command) => {
+	.option("--global", "Save to global config instead of project config")
+	.action(async (name: string, options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
@@ -36,13 +41,23 @@ export const useCommand = new Command("use")
 				);
 			}
 
-			// Store MCP ID locally
-			await config.setActiveMcpId(mcp.id);
+			// Save to project config if in a project, otherwise global
+			const useProjectConfig = !options.global && hasProjectConfig();
+
+			if (useProjectConfig) {
+				await saveProjectConfig({ mcpId: mcp.id });
+			} else {
+				await config.setActiveMcpId(mcp.id);
+			}
 
 			if (json) {
-				formatOutput({ selected: mcp }, true);
+				formatOutput(
+					{ selected: mcp, scope: useProjectConfig ? "project" : "global" },
+					true,
+				);
 			} else {
-				formatSuccess(`Now using MCP "${name}"`, false);
+				const scope = useProjectConfig ? "(project)" : "(global)";
+				formatSuccess(`Now using MCP "${name}" ${scope}`, false);
 				console.log();
 				console.log(`  MCP ID:      ${mcp.id}`);
 				console.log(`  Preview URL: ${mcp.previewUrl}`);

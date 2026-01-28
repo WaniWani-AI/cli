@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { mcpCommand } from "./commands/mcp/index.js";
@@ -19,6 +20,7 @@ program.addCommand(loginCommand);
 program.addCommand(logoutCommand);
 
 // Main commands
+program.addCommand(initCommand);
 program.addCommand(mcpCommand);
 program.addCommand(taskCommand);
 program.addCommand(orgCommand);

@@ -12,8 +12,8 @@ export const taskCommand = new Command("task")
 	.description("Send a task to Claude running in the sandbox")
 	.argument("<prompt>", "Task description/prompt")
 	.option("--mcp-id <id>", "Specific MCP ID")
-	.option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
-	.option("--max-steps <n>", "Maximum tool use steps", "10")
+	.option("--model <model>", "Claude model to use")
+	.option("--max-steps <n>", "Maximum tool use steps")
 	.action(async (prompt: string, options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
@@ -22,10 +22,10 @@ export const taskCommand = new Command("task")
 			let mcpId = options.mcpId;
 
 			if (!mcpId) {
-				mcpId = await config.getActiveMcpId();
+				mcpId = await config.getEffectiveMcpId();
 				if (!mcpId) {
 					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
+						"No active MCP. Run 'waniwani init' then 'waniwani mcp use <name>'.",
 					);
 				}
 			}
@@ -37,7 +37,11 @@ export const taskCommand = new Command("task")
 				);
 			}
 
-			const maxSteps = parseInt(options.maxSteps, 10);
+			const defaults = await config.getEffectiveDefaults();
+			const model = options.model ?? defaults.model;
+			const maxSteps = options.maxSteps
+				? Number.parseInt(options.maxSteps, 10)
+				: defaults.maxSteps;
 
 			if (!json) {
 				console.log();
@@ -58,7 +62,7 @@ export const taskCommand = new Command("task")
 				},
 				body: JSON.stringify({
 					prompt,
-					model: options.model,
+					model,
 					maxSteps,
 				}),
 			});

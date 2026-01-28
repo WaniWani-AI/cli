@@ -4,12 +4,17 @@ import { api } from "../../lib/api.js";
 import { config } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
+import {
+	hasProjectConfig,
+	saveProjectConfig,
+} from "../../lib/project-config.js";
 import type { CreateMcpResponse } from "../../types/index.js";
 
 export const createCommand = new Command("create")
 	.description("Create a new MCP sandbox from template")
 	.argument("<name>", "Name for the MCP project")
-	.action(async (name: string, _, command) => {
+	.option("--global", "Save to global config instead of project config")
+	.action(async (name: string, options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
@@ -22,14 +27,29 @@ export const createCommand = new Command("create")
 
 			spinner.succeed("MCP sandbox created");
 
-			// Set active MCP ID locally
-			config.setActiveMcpId(result.id);
+			// Save to project config if in a project, otherwise global
+			const useProjectConfig = !options.global && hasProjectConfig();
+
+			if (useProjectConfig) {
+				await saveProjectConfig({ mcpId: result.id });
+			} else {
+				await config.setActiveMcpId(result.id);
+			}
 
 			if (json) {
-				formatOutput(result, true);
+				formatOutput(
+					{ ...result, scope: useProjectConfig ? "project" : "global" },
+					true,
+				);
 			} else {
+				const scope = useProjectConfig
+					? "(saved to project)"
+					: "(saved globally)";
 				console.log();
-				formatSuccess(`MCP sandbox "${name}" created successfully!`, false);
+				formatSuccess(
+					`MCP sandbox "${name}" created successfully! ${scope}`,
+					false,
+				);
 				console.log();
 				console.log(`  MCP ID:      ${result.id}`);
 				console.log(`  Sandbox ID:  ${result.sandboxId}`);

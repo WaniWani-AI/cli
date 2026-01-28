@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { loadProjectConfig } from "./project-config.js";
 
 const CONFIG_DIR = join(homedir(), ".waniwani");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -56,6 +57,24 @@ class ConfigManager {
 	async getDefaults(): Promise<Config["defaults"]> {
 		const config = await this.getConfig();
 		return config.defaults;
+	}
+
+	async getEffectiveDefaults(): Promise<Config["defaults"]> {
+		const globalConfig = await this.getConfig();
+		const projectConfig = await loadProjectConfig();
+
+		return {
+			...globalConfig.defaults,
+			...projectConfig?.defaults,
+		};
+	}
+
+	async getEffectiveMcpId(): Promise<string | null> {
+		const projectConfig = await loadProjectConfig();
+		if (projectConfig?.mcpId) {
+			return projectConfig.mcpId;
+		}
+		return this.getActiveMcpId();
 	}
 
 	async setDefaults(defaults: Partial<Config["defaults"]>): Promise<void> {
