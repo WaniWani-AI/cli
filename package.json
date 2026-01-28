@@ -1,6 +1,6 @@
 {
   "name": "@waniwani/cli",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "WaniWani CLI for MCP development workflow",
   "type": "module",
   "exports": {
