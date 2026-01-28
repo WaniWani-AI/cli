@@ -13,6 +13,17 @@ export const OAuthTokenResponseSchema = z.object({
 
 export type OAuthTokenResponse = z.infer<typeof OAuthTokenResponseSchema>;
 
+export const OAuthClientRegistrationResponseSchema = z.object({
+	client_id: z.string(),
+	client_secret: z.string().optional(),
+	client_id_issued_at: z.number().optional(),
+	client_secret_expires_at: z.number().optional(),
+});
+
+export type OAuthClientRegistrationResponse = z.infer<
+	typeof OAuthClientRegistrationResponseSchema
+>;
+
 // ============================================
 // MCP Types
 // ============================================

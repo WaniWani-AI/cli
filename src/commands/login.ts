@@ -7,11 +7,14 @@ import { auth } from "../lib/auth.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
-import type { OAuthTokenResponse } from "../types/index.js";
+import type {
+	OAuthClientRegistrationResponse,
+	OAuthTokenResponse,
+} from "../types/index.js";
 
 const CALLBACK_PORT = 54321;
 const CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/callback`;
-const CLIENT_ID = "waniwani-cli";
+const CLIENT_NAME = "waniwani-cli";
 
 function generateCodeVerifier(): string {
 	const array = new Uint8Array(32);
@@ -36,6 +39,34 @@ function generateState(): string {
 	const array = new Uint8Array(16);
 	crypto.getRandomValues(array);
 	return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function registerClient(): Promise<OAuthClientRegistrationResponse> {
+	const apiUrl = await config.getApiUrl();
+	const response = await fetch(`${apiUrl}/api/auth/oauth2/register`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			client_name: CLIENT_NAME,
+			redirect_uris: [CALLBACK_URL],
+			grant_types: ["authorization_code", "refresh_token"],
+			response_types: ["code"],
+			token_endpoint_auth_method: "none",
+		}),
+	});
+
+	if (!response.ok) {
+		const error = await response.json().catch(() => ({}));
+		throw new CLIError(
+			(error as { error_description?: string }).error_description ||
+				"Failed to register OAuth client",
+			"CLIENT_REGISTRATION_FAILED",
+		);
+	}
+
+	return response.json() as Promise<OAuthClientRegistrationResponse>;
 }
 
 async function openBrowser(url: string): Promise<void> {
@@ -171,6 +202,7 @@ async function waitForCallback(
 async function exchangeCodeForToken(
 	code: string,
 	codeVerifier: string,
+	clientId: string,
 ): Promise<OAuthTokenResponse> {
 	const apiUrl = await config.getApiUrl();
 	const response = await fetch(`${apiUrl}/api/auth/oauth2/token`, {
@@ -182,7 +214,7 @@ async function exchangeCodeForToken(
 			grant_type: "authorization_code",
 			code,
 			redirect_uri: CALLBACK_URL,
-			client_id: CLIENT_ID,
+			client_id: clientId,
 			code_verifier: codeVerifier,
 		}).toString(),
 	});
@@ -225,6 +257,13 @@ export const loginCommand = new Command("login")
 				console.log(chalk.bold("\nWaniWani CLI Login\n"));
 			}
 
+			const spinner = ora("Registering client...").start();
+
+			// Register OAuth client dynamically
+			const { client_id: clientId } = await registerClient();
+
+			spinner.text = "Preparing authentication...";
+
 			// Generate PKCE values
 			const codeVerifier = generateCodeVerifier();
 			const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -233,12 +272,14 @@ export const loginCommand = new Command("login")
 			// Build authorization URL
 			const apiUrl = await config.getApiUrl();
 			const authUrl = new URL(`${apiUrl}/api/auth/oauth2/authorize`);
-			authUrl.searchParams.set("client_id", CLIENT_ID);
+			authUrl.searchParams.set("client_id", clientId);
 			authUrl.searchParams.set("redirect_uri", CALLBACK_URL);
 			authUrl.searchParams.set("response_type", "code");
 			authUrl.searchParams.set("code_challenge", codeChallenge);
 			authUrl.searchParams.set("code_challenge_method", "S256");
 			authUrl.searchParams.set("state", state);
+
+			spinner.stop();
 
 			if (!json) {
 				console.log("Opening browser for authentication...\n");
@@ -254,7 +295,7 @@ export const loginCommand = new Command("login")
 				await openBrowser(authUrl.toString());
 			}
 
-			const spinner = ora("Waiting for authorization...").start();
+			spinner.start("Waiting for authorization...");
 
 			// Wait for callback with auth code
 			const code = await callbackPromise;
@@ -262,7 +303,11 @@ export const loginCommand = new Command("login")
 			spinner.text = "Exchanging code for token...";
 
 			// Exchange code for token
-			const tokenResponse = await exchangeCodeForToken(code, codeVerifier);
+			const tokenResponse = await exchangeCodeForToken(
+				code,
+				codeVerifier,
+				clientId,
+			);
 
 			// Store tokens
 			await auth.setTokens(
