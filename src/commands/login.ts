@@ -216,6 +216,7 @@ async function exchangeCodeForToken(
 	code: string,
 	codeVerifier: string,
 	clientId: string,
+	resource: string,
 ): Promise<OAuthTokenResponse> {
 	const apiUrl = await config.getApiUrl();
 	const response = await fetch(`${apiUrl}/api/auth/oauth2/token`, {
@@ -229,6 +230,7 @@ async function exchangeCodeForToken(
 			redirect_uri: CALLBACK_URL,
 			client_id: clientId,
 			code_verifier: codeVerifier,
+			resource, // RFC 8707 - required to get JWT token
 		}).toString(),
 	});
 
@@ -291,6 +293,7 @@ export const loginCommand = new Command("login")
 			authUrl.searchParams.set("code_challenge", codeChallenge);
 			authUrl.searchParams.set("code_challenge_method", "S256");
 			authUrl.searchParams.set("state", state);
+			authUrl.searchParams.set("resource", apiUrl); // RFC 8707 - request JWT token
 
 			spinner.stop();
 
@@ -320,6 +323,7 @@ export const loginCommand = new Command("login")
 				code,
 				codeVerifier,
 				clientId,
+				apiUrl, // RFC 8707 resource parameter
 			);
 
 			// Store tokens and client ID for refresh
