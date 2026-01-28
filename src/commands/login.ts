@@ -232,7 +232,7 @@ export const loginCommand = new Command("login")
 
 			// Build authorization URL
 			const apiUrl = await config.getApiUrl();
-			const authUrl = new URL(`${apiUrl}/oauth/authorize`);
+			const authUrl = new URL(`${apiUrl}/api/auth/oauth2/authorize`);
 			authUrl.searchParams.set("client_id", CLIENT_ID);
 			authUrl.searchParams.set("redirect_uri", CALLBACK_URL);
 			authUrl.searchParams.set("response_type", "code");
