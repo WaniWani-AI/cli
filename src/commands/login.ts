@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServer, type Server } from "node:http";
+import type { Socket } from "node:net";
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
@@ -86,14 +87,20 @@ async function waitForCallback(
 ): Promise<string> {
 	return new Promise((resolve, reject) => {
 		let server: Server | null = null;
+		const sockets = new Set<Socket>();
 
 		const timeout = setTimeout(() => {
-			server?.close();
+			cleanup();
 			reject(new CLIError("Login timed out", "LOGIN_TIMEOUT"));
 		}, timeoutMs);
 
 		const cleanup = () => {
 			clearTimeout(timeout);
+			// Destroy all active connections to allow process to exit
+			for (const socket of sockets) {
+				socket.destroy();
+			}
+			sockets.clear();
 			server?.close();
 		};
 
@@ -175,6 +182,12 @@ async function waitForCallback(
 
 				res.statusCode = 404;
 				res.end("Not found");
+			});
+
+			// Track connections so we can force-close them
+			server.on("connection", (socket) => {
+				sockets.add(socket);
+				socket.on("close", () => sockets.delete(socket));
 			});
 
 			server.on("error", (err: NodeJS.ErrnoException) => {
@@ -309,11 +322,12 @@ export const loginCommand = new Command("login")
 				clientId,
 			);
 
-			// Store tokens
+			// Store tokens and client ID for refresh
 			await auth.setTokens(
 				tokenResponse.access_token,
 				tokenResponse.refresh_token,
 				tokenResponse.expires_in,
+				clientId,
 			);
 
 			spinner.succeed("Logged in successfully!");

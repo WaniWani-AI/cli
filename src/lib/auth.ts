@@ -11,6 +11,7 @@ const AuthStoreSchema = z.object({
 	accessToken: z.string().nullable().default(null),
 	refreshToken: z.string().nullable().default(null),
 	expiresAt: z.string().nullable().default(null),
+	clientId: z.string().nullable().default(null),
 });
 
 type AuthStore = z.infer<typeof AuthStoreSchema>;
@@ -69,12 +70,16 @@ class AuthManager {
 		accessToken: string,
 		refreshToken: string,
 		expiresIn: number,
+		clientId?: string,
 	): Promise<void> {
 		const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 		const store = await this.getStore();
 		store.accessToken = accessToken;
 		store.refreshToken = refreshToken;
 		store.expiresAt = expiresAt;
+		if (clientId) {
+			store.clientId = clientId;
+		}
 		await this.saveStore(store);
 	}
 
@@ -91,8 +96,9 @@ class AuthManager {
 	}
 
 	async tryRefreshToken(): Promise<boolean> {
-		const refreshToken = await this.getRefreshToken();
-		if (!refreshToken) return false;
+		const store = await this.getStore();
+		const { refreshToken, clientId } = store;
+		if (!refreshToken || !clientId) return false;
 
 		try {
 			const apiUrl = await config.getApiUrl();
@@ -102,7 +108,7 @@ class AuthManager {
 				body: new URLSearchParams({
 					grant_type: "refresh_token",
 					refresh_token: refreshToken,
-					client_id: "waniwani-cli",
+					client_id: clientId,
 				}).toString(),
 			});
 
