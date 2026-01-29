@@ -220,3 +220,38 @@ export const RunCommandResponseSchema = z.object({
 	duration: z.number(),
 });
 export type RunCommandResponse = z.infer<typeof RunCommandResponseSchema>;
+
+// ============================================
+// Server Lifecycle Types
+// ============================================
+
+// Server status response
+export const ServerStatusResponseSchema = z.object({
+	running: z.boolean(),
+	cmdId: z.string().optional(),
+	previewUrl: z.string().optional(),
+});
+export type ServerStatusResponse = z.infer<typeof ServerStatusResponseSchema>;
+
+// Server start response
+export const ServerStartResponseSchema = z.object({
+	cmdId: z.string(),
+	previewUrl: z.string(),
+});
+export type ServerStartResponse = z.infer<typeof ServerStartResponseSchema>;
+
+// Server stop response
+export const ServerStopResponseSchema = z.object({
+	stopped: z.boolean(),
+});
+export type ServerStopResponse = z.infer<typeof ServerStopResponseSchema>;
+
+// Log streaming event types
+export const LogEventSchema = z.object({
+	stream: z.enum(["stdout", "stderr"]).optional(),
+	data: z.string().optional(),
+	cmdId: z.string().optional(),
+	exitCode: z.number().optional(),
+	error: z.string().optional(),
+});
+export type LogEvent = z.infer<typeof LogEventSchema>;

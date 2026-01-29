@@ -4,10 +4,9 @@ import { api } from "../../lib/api.js";
 import { config } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { ServerStopResponse } from "../../types/index.js";
 
-export const stopCommand = new Command("stop")
-	.description("Stop the MCP server process")
+export const deleteCommand = new Command("delete")
+	.description("Delete the MCP sandbox")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
@@ -19,29 +18,23 @@ export const stopCommand = new Command("stop")
 			if (!mcpId) {
 				mcpId = await config.getMcpId();
 				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
+					throw new McpError("No active MCP. Use --mcp-id to specify one.");
 				}
 			}
 
-			const spinner = ora("Stopping MCP server...").start();
+			const spinner = ora("Deleting MCP sandbox...").start();
+			await api.delete(`/api/mcp/sandboxes/${mcpId}`);
+			spinner.succeed("MCP sandbox deleted");
 
-			const result = await api.post<ServerStopResponse>(
-				`/api/mcp/sandboxes/${mcpId}/server`,
-				{ action: "stop" },
-			);
-
-			if (result.stopped) {
-				spinner.succeed("MCP server stopped");
-			} else {
-				spinner.warn("Server was not running");
+			// Clear active MCP if it was the one we deleted
+			if ((await config.getMcpId()) === mcpId) {
+				await config.setMcpId(null);
 			}
 
 			if (json) {
-				formatOutput(result, true);
+				formatOutput({ deleted: mcpId }, true);
 			} else {
-				formatSuccess("MCP server stopped.", false);
+				formatSuccess("MCP sandbox deleted and cleaned up.", false);
 			}
 		} catch (error) {
 			handleError(error, json);

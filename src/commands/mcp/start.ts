@@ -1,13 +1,14 @@
+import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
 import { config } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
-import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { ServerStopResponse } from "../../types/index.js";
+import { formatList, formatOutput } from "../../lib/output.js";
+import type { ServerStartResponse } from "../../types/index.js";
 
-export const stopCommand = new Command("stop")
-	.description("Stop the MCP server process")
+export const startCommand = new Command("start")
+	.description("Start the MCP server (npm run dev)")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
@@ -25,23 +26,30 @@ export const stopCommand = new Command("stop")
 				}
 			}
 
-			const spinner = ora("Stopping MCP server...").start();
+			const spinner = ora("Starting MCP server...").start();
 
-			const result = await api.post<ServerStopResponse>(
+			const result = await api.post<ServerStartResponse>(
 				`/api/mcp/sandboxes/${mcpId}/server`,
-				{ action: "stop" },
+				{ action: "start" },
 			);
 
-			if (result.stopped) {
-				spinner.succeed("MCP server stopped");
-			} else {
-				spinner.warn("Server was not running");
-			}
+			spinner.succeed("MCP server started");
 
 			if (json) {
 				formatOutput(result, true);
 			} else {
-				formatSuccess("MCP server stopped.", false);
+				console.log();
+				formatList(
+					[
+						{ label: "Command ID", value: result.cmdId },
+						{ label: "Preview URL", value: chalk.cyan(result.previewUrl) },
+					],
+					false,
+				);
+				console.log();
+				console.log(
+					chalk.gray("Run 'waniwani mcp logs' to stream server output"),
+				);
 			}
 		} catch (error) {
 			handleError(error, json);

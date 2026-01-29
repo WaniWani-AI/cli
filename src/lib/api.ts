@@ -68,12 +68,46 @@ async function request<T>(
 		return undefined as T;
 	}
 
-	const data = (await response.json()) as ApiResponse<T>;
+	let data: ApiResponse<T>;
+	let rawBody: string | undefined;
+
+	try {
+		rawBody = await response.text();
+		data = JSON.parse(rawBody) as ApiResponse<T>;
+	} catch {
+		// JSON parsing failed - use raw body as error message
+		throw new ApiError(
+			rawBody || `Request failed with status ${response.status}`,
+			"API_ERROR",
+			response.status,
+			{ statusText: response.statusText },
+		);
+	}
 
 	if (!response.ok || data.error) {
-		const error = data.error || {
-			code: "API_ERROR",
-			message: `Request failed with status ${response.status}`,
+		// Try to extract error message from various possible response formats
+		const errorMessage =
+			data.error?.message ||
+			(data as unknown as { message?: string }).message ||
+			(data as unknown as { error?: string }).error ||
+			rawBody ||
+			`Request failed with status ${response.status}`;
+
+		const errorCode =
+			data.error?.code ||
+			(data as unknown as { code?: string }).code ||
+			"API_ERROR";
+
+		const errorDetails = {
+			...data.error?.details,
+			statusText: response.statusText,
+			...(data.error ? {} : { rawResponse: data }),
+		};
+
+		const error = {
+			code: errorCode,
+			message: errorMessage,
+			details: errorDetails,
 		};
 
 		// Handle token expiration

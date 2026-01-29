@@ -1,13 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
-import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { ReadFileResponse } from "../../types/index.js";
+import { api } from "../../../lib/api.js";
+import { config } from "../../../lib/config.js";
+import { handleError, McpError } from "../../../lib/errors.js";
+import { formatOutput, formatSuccess } from "../../../lib/output.js";
+import type { ReadFileResponse } from "../../../types/index.js";
 
-export const readFileCommand = new Command("read-file")
+export const readCommand = new Command("read")
 	.description("Read a file from the MCP sandbox")
 	.argument("<path>", "Path in sandbox (e.g., /app/src/index.ts)")
 	.option("--mcp-id <id>", "Specific MCP ID")

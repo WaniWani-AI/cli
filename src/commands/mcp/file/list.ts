@@ -1,13 +1,13 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
-import { formatOutput, formatTable } from "../../lib/output.js";
-import type { ListFilesResponse } from "../../types/index.js";
+import { api } from "../../../lib/api.js";
+import { config } from "../../../lib/config.js";
+import { handleError, McpError } from "../../../lib/errors.js";
+import { formatOutput, formatTable } from "../../../lib/output.js";
+import type { ListFilesResponse } from "../../../types/index.js";
 
-export const listFilesCommand = new Command("list-files")
+export const listCommand = new Command("list")
 	.description("List files in the MCP sandbox")
 	.argument("[path]", "Directory path (defaults to /app)", "/app")
 	.option("--mcp-id <id>", "Specific MCP ID")
