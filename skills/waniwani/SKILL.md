@@ -11,7 +11,7 @@ allowed-tools: Bash(waniwani:*)
 ```bash
 waniwani login                          # Authenticate with WaniWani
 waniwani mcp create my-server           # Create a new MCP sandbox
-waniwani mcp write-file src/index.ts --file ./local.ts  # Upload file
+waniwani mcp file write src/index.ts --file ./local.ts  # Upload file
 waniwani mcp run-command npm install    # Run commands in sandbox
 waniwani mcp deploy                     # Deploy to GitHub + Vercel
 ```
@@ -20,15 +20,16 @@ waniwani mcp deploy                     # Deploy to GitHub + Vercel
 
 - **Sandboxes are for MCP servers** - The preview URL serves MCP protocol (SSE), not HTTP. Don't use for static sites or regular web apps.
 - **No persistent storage** - Sandboxes expire after ~30 minutes of inactivity.
-- **Single process** - Can't run background daemons or multiple services.
 
 ## Core workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
 2. **Create sandbox**: `waniwani mcp create <name>`
-3. **Write code**: Use `waniwani mcp write-file` to push files to sandbox
-4. **Run commands**: `waniwani mcp run-command npm install`
-5. **Deploy**: `waniwani mcp deploy`
+3. **Write code**: Use `waniwani mcp file write` to push files to sandbox
+4. **Install deps**: `waniwani mcp run-command npm install`
+5. **Start server**: `waniwani mcp start` (runs in background)
+6. **Monitor logs**: `waniwani mcp logs -f` (stream server output)
+7. **Deploy**: `waniwani mcp deploy`
 
 ## Commands
 
@@ -49,10 +50,12 @@ waniwani mcp list               # List all active MCPs
 waniwani mcp list --all         # Include stopped/expired MCPs
 waniwani mcp use <name>         # Select an MCP for subsequent commands
 waniwani mcp use <name> --global    # Save to global config
-waniwani mcp status             # Show current MCP status
+waniwani mcp status             # Show current MCP status and server info
 waniwani mcp status --mcp-id <id>   # Status for specific MCP
-waniwani mcp stop               # Stop and clean up current sandbox
-waniwani mcp stop --mcp-id <id>     # Stop specific sandbox
+waniwani mcp stop               # Stop the running MCP server
+waniwani mcp stop --mcp-id <id>     # Stop server for specific sandbox
+waniwani mcp delete             # Delete sandbox and clear from config
+waniwani mcp delete --mcp-id <id>   # Delete specific sandbox
 ```
 
 ### File Operations
@@ -61,16 +64,16 @@ All paths are relative to the project root. Leading slashes are optional.
 
 ```bash
 # List files
-waniwani mcp list-files                 # List project root
-waniwani mcp list-files src             # List specific directory
+waniwani mcp file list                  # List project root
+waniwani mcp file list src              # List specific directory
 
 # Read files from sandbox
-waniwani mcp read-file src/index.ts     # Print to stdout
-waniwani mcp read-file src/index.ts --output local.ts  # Save locally
+waniwani mcp file read src/index.ts     # Print to stdout
+waniwani mcp file read src/index.ts --output local.ts  # Save locally
 
 # Write files to sandbox
-waniwani mcp write-file src/new.ts --content "export const foo = 1;"
-waniwani mcp write-file src/new.ts --file ./local-file.ts
+waniwani mcp file write src/new.ts --content "export const foo = 1;"
+waniwani mcp file write src/new.ts --file ./local-file.ts
 ```
 
 ### Run Commands in Sandbox
@@ -83,6 +86,33 @@ waniwani mcp run-command npm run build      # Build the project
 waniwani mcp run-command "ls -la"           # Quote commands with flags
 waniwani mcp run-command --cwd src ls       # Set working directory
 waniwani mcp run-command --timeout 60000 npm run build  # Custom timeout (ms)
+waniwani mcp run-command --stream npm install  # Stream output in real-time
+```
+
+### MCP Server Lifecycle
+
+Start, stop, and monitor your MCP server running in the sandbox.
+
+```bash
+waniwani mcp start                  # Start MCP server (npm run dev) in background
+waniwani mcp start --command "node src/index.js"  # Custom start command
+waniwani mcp stop                   # Stop the running MCP server
+waniwani mcp logs                   # Get current logs from the running server
+waniwani mcp logs -f                # Stream logs continuously (follow mode)
+waniwani mcp logs --follow          # Same as -f
+waniwani mcp logs <cmdId>           # Get logs from a specific command
+waniwani mcp logs <cmdId> -f        # Stream logs from a specific command
+```
+
+**Typical workflow:**
+```bash
+waniwani mcp create my-server       # Create sandbox
+# ... write files, npm install ...
+waniwani mcp start                  # Start the server
+waniwani mcp logs -f                # Monitor output (Ctrl+C to exit)
+# Make changes to files...
+waniwani mcp stop                   # Stop server
+waniwani mcp start                  # Restart with changes
 ```
 
 ### Deployment
@@ -140,7 +170,7 @@ waniwani mcp create my-server
 
 **2. Write package.json:**
 ```bash
-waniwani mcp write-file package.json --content '{
+waniwani mcp file write package.json --content '{
   "name": "my-mcp",
   "type": "module",
   "scripts": { "dev": "tsx src/index.ts" },
@@ -154,7 +184,7 @@ waniwani mcp write-file package.json --content '{
 
 **3. Write src/index.ts:**
 ```bash
-waniwani mcp write-file src/index.ts --content 'import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+waniwani mcp file write src/index.ts --content 'import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const server = new McpServer({ name: "my-mcp", version: "1.0.0" });
