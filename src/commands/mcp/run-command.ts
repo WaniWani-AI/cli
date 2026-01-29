@@ -40,7 +40,7 @@ export const runCommandCommand = new Command("run-command")
 			const spinner = ora(`Running: ${cmd} ${args.join(" ")}`.trim()).start();
 
 			const result = await api.post<RunCommandResponse>(
-				`/api/mcp/sandboxes/${mcpId}/command`,
+				`/api/mcp/sandboxes/${mcpId}/commands`,
 				{
 					command: cmd,
 					args: args.length > 0 ? args : undefined,
