@@ -37,7 +37,7 @@ export const testCommand = new Command("test")
 					// List tools
 					const spinner = ora("Fetching available tools...").start();
 					const result = await api.post<McpTestResponse>(
-						`/api/admin/mcps/${mcpId}/test`,
+						`/api/mcp/sandboxes/${mcpId}/test`,
 						{ action: "list" },
 					);
 					spinner.stop();
@@ -77,7 +77,7 @@ export const testCommand = new Command("test")
 					const spinner = ora(`Calling tool "${tool}"...`).start();
 					const startTime = Date.now();
 					const result = await api.post<McpCallResponse>(
-						`/api/admin/mcps/${mcpId}/test`,
+						`/api/mcp/sandboxes/${mcpId}/test`,
 						{
 							action: "call",
 							tool,

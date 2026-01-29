@@ -53,19 +53,22 @@ export const taskCommand = new Command("task")
 
 			// Use fetch with SSE for streaming
 			const baseUrl = await api.getBaseUrl();
-			const response = await fetch(`${baseUrl}/api/admin/mcps/${mcpId}/task`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-					Accept: "text/event-stream",
+			const response = await fetch(
+				`${baseUrl}/api/mcp/sandboxes/${mcpId}/task`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+						Accept: "text/event-stream",
+					},
+					body: JSON.stringify({
+						prompt,
+						model,
+						maxSteps,
+					}),
 				},
-				body: JSON.stringify({
-					prompt,
-					model,
-					maxSteps,
-				}),
-			});
+			);
 
 			if (!response.ok) {
 				const error = await response
@@ -172,11 +175,16 @@ export const taskCommand = new Command("task")
 				maxStepsReached,
 			};
 
+			const finalStepCount = stepCount ?? steps.length;
+
 			if (json) {
-				formatOutput(result, true);
+				formatOutput({ ...result, stepCount: finalStepCount }, true);
 			} else {
 				console.log();
-				console.log(chalk.green("✓"), `Task completed in ${stepCount} steps.`);
+				console.log(
+					chalk.green("✓"),
+					`Task completed in ${finalStepCount} steps.`,
+				);
 				if (maxStepsReached) {
 					console.log(
 						chalk.yellow("⚠"),

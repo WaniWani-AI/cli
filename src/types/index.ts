@@ -179,3 +179,44 @@ export interface CommandResult<T = unknown> {
 		details?: Record<string, unknown>;
 	};
 }
+
+// ============================================
+// Sandbox File/Command Operation Types
+// ============================================
+
+// Write files
+export const WriteFilesResponseSchema = z.object({
+	written: z.array(z.string()),
+});
+export type WriteFilesResponse = z.infer<typeof WriteFilesResponseSchema>;
+
+// Read file
+export const ReadFileResponseSchema = z.object({
+	path: z.string(),
+	content: z.string(),
+	encoding: z.enum(["utf8", "base64"]),
+	exists: z.boolean(),
+});
+export type ReadFileResponse = z.infer<typeof ReadFileResponseSchema>;
+
+// List files
+export const ListFilesResponseSchema = z.object({
+	path: z.string(),
+	entries: z.array(
+		z.object({
+			name: z.string(),
+			type: z.enum(["file", "directory"]),
+			size: z.number().optional(),
+		}),
+	),
+});
+export type ListFilesResponse = z.infer<typeof ListFilesResponseSchema>;
+
+// Run command
+export const RunCommandResponseSchema = z.object({
+	exitCode: z.number(),
+	stdout: z.string(),
+	stderr: z.string(),
+	duration: z.number(),
+});
+export type RunCommandResponse = z.infer<typeof RunCommandResponseSchema>;

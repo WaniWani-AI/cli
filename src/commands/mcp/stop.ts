@@ -23,7 +23,7 @@ export const stopCommand = new Command("stop")
 			}
 
 			const spinner = ora("Stopping MCP sandbox...").start();
-			await api.delete(`/api/admin/mcps/${mcpId}`);
+			await api.delete(`/api/mcp/sandboxes/${mcpId}`);
 			spinner.succeed("MCP sandbox stopped");
 
 			// Clear active MCP if it was the one we stopped

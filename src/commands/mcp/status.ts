@@ -27,7 +27,7 @@ export const statusCommand = new Command("status")
 			}
 
 			const spinner = ora("Fetching MCP status...").start();
-			const result = await api.get<Mcp>(`/api/admin/mcps/${mcpId}`);
+			const result = await api.get<Mcp>(`/api/mcp/sandboxes/${mcpId}`);
 			spinner.stop();
 
 			if (json) {

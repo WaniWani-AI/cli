@@ -17,7 +17,7 @@ export const createCommand = new Command("create")
 		try {
 			const spinner = ora("Creating MCP sandbox...").start();
 
-			const result = await api.post<CreateMcpResponse>("/api/admin/mcps", {
+			const result = await api.post<CreateMcpResponse>("/api/mcp/sandboxes", {
 				name,
 			});
 
