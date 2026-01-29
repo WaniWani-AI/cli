@@ -254,18 +254,42 @@ export const loginCommand = new Command("login")
 		const json = globalOptions.json ?? false;
 
 		try {
-			// Check if already logged in
+			// Check if already logged in with a valid session
 			if (await auth.isLoggedIn()) {
-				if (json) {
-					formatOutput({ alreadyLoggedIn: true }, true);
+				// Check if token is expired
+				if (await auth.isTokenExpired()) {
+					// Try to refresh the token
+					const refreshed = await auth.tryRefreshToken();
+					if (refreshed) {
+						if (json) {
+							formatOutput({ alreadyLoggedIn: true, refreshed: true }, true);
+						} else {
+							console.log(
+								chalk.green("Session refreshed. You're still logged in."),
+							);
+						}
+						return;
+					}
+					// Refresh failed, clear and proceed with login
+					if (!json) {
+						console.log(
+							chalk.yellow("Session expired. Starting new login flow..."),
+						);
+					}
+					await auth.clear();
 				} else {
-					console.log(
-						chalk.yellow(
-							"Already logged in. Use 'waniwani logout' to log out first.",
-						),
-					);
+					// Token is valid
+					if (json) {
+						formatOutput({ alreadyLoggedIn: true }, true);
+					} else {
+						console.log(
+							chalk.yellow(
+								"Already logged in. Use 'waniwani logout' to log out first.",
+							),
+						);
+					}
+					return;
 				}
-				return;
 			}
 
 			if (!json) {
