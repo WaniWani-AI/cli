@@ -104,14 +104,111 @@ async function waitForCallback(
 			server?.close();
 		};
 
-		const htmlResponse = (title: string, message: string, color: string) =>
-			`<html>
-        <body style="font-family: system-ui; padding: 40px; text-align: center;">
-          <h1 style="color: ${color};">${title}</h1>
-          <p>${message}</p>
-          <p>You can close this window.</p>
-        </body>
-      </html>`;
+		const htmlResponse = (title: string, message: string, isSuccess: boolean) =>
+			`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - WaniWani</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+      position: relative;
+      overflow: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+    }
+    .blob-1 {
+      top: 0;
+      left: 25%;
+      width: 24rem;
+      height: 24rem;
+      background: linear-gradient(to bottom right, rgba(253, 224, 71, 0.3), rgba(251, 146, 60, 0.3));
+    }
+    .blob-2 {
+      bottom: 0;
+      right: 25%;
+      width: 24rem;
+      height: 24rem;
+      background: linear-gradient(to bottom right, rgba(134, 239, 172, 0.3), rgba(52, 211, 153, 0.3));
+    }
+    .blob-3 {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40rem;
+      height: 40rem;
+      background: linear-gradient(to bottom right, rgba(255, 237, 213, 0.2), rgba(254, 249, 195, 0.2));
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      padding: 2rem;
+      z-index: 10;
+      text-align: center;
+    }
+    .logo {
+      height: 40px;
+    }
+    .icon-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: ${isSuccess ? "rgba(52, 211, 153, 0.15)" : "rgba(239, 68, 68, 0.15)"};
+    }
+    .icon {
+      width: 40px;
+      height: 40px;
+      color: ${isSuccess ? "#10b981" : "#ef4444"};
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    p {
+      font-size: 1.125rem;
+      color: #64748b;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="container">
+    <svg class="logo" viewBox="0 0 248 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="32" font-family="system-ui" font-size="28" font-weight="bold" fill="#1e293b">WaniWani</text>
+    </svg>
+    <div class="icon-circle">
+      ${
+				isSuccess
+					? '<svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>'
+					: '<svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>'
+			}
+    </div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+  </div>
+</body>
+</html>`;
 
 		try {
 			server = createServer((req, res) => {
@@ -129,7 +226,7 @@ async function waitForCallback(
 
 					if (error) {
 						res.statusCode = 400;
-						res.end(htmlResponse("Login Failed", `Error: ${error}`, "#ef4444"));
+						res.end(htmlResponse("Login Failed", `Error: ${error}`, false));
 						cleanup();
 						reject(new CLIError(`OAuth error: ${error}`, "OAUTH_ERROR"));
 						return;
@@ -141,7 +238,7 @@ async function waitForCallback(
 							htmlResponse(
 								"Login Failed",
 								"Invalid state parameter. Please try again.",
-								"#ef4444",
+								false,
 							),
 						);
 						cleanup();
@@ -155,7 +252,7 @@ async function waitForCallback(
 							htmlResponse(
 								"Login Failed",
 								"No authorization code received.",
-								"#ef4444",
+								false,
 							),
 						);
 						cleanup();
@@ -168,7 +265,7 @@ async function waitForCallback(
 						htmlResponse(
 							"Login Successful!",
 							"You can close this window and return to the terminal.",
-							"#22c55e",
+							true,
 						),
 					);
 
