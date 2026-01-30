@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import ora from "ora";
@@ -11,6 +11,35 @@ import type { CreateMcpResponse } from "../types/index.js";
 
 const PROJECT_CONFIG_DIR = ".waniwani";
 const PROJECT_CONFIG_FILE = "settings.json";
+
+const DEFAULT_PROJECT_CONFIG = {
+	defaults: {
+		model: "claude-sonnet-4-20250514",
+		maxSteps: 10,
+	},
+};
+
+/**
+ * Load parent .waniwani/settings.json if it exists
+ */
+async function loadParentConfig(
+	cwd: string,
+): Promise<Record<string, unknown> | null> {
+	const parentConfigPath = join(cwd, PROJECT_CONFIG_DIR, PROJECT_CONFIG_FILE);
+	if (!existsSync(parentConfigPath)) {
+		return null;
+	}
+
+	try {
+		const content = await readFile(parentConfigPath, "utf-8");
+		const config = JSON.parse(content);
+		// Remove mcpId from parent - the new project gets its own
+		const { mcpId: _, ...rest } = config;
+		return rest;
+	} catch {
+		return null;
+	}
+}
 
 export const initCommand = new Command("init")
 	.description("Create a new MCP project from template")
@@ -57,17 +86,17 @@ export const initCommand = new Command("init")
 			spinner.text = "Setting up project config...";
 
 			// Create .waniwani/settings.json with mcpId
+			// Inherit settings from parent .waniwani if it exists
 			const configDir = join(projectDir, PROJECT_CONFIG_DIR);
 			const configPath = join(configDir, PROJECT_CONFIG_FILE);
 
 			await mkdir(configDir, { recursive: true });
 
+			const parentConfig = await loadParentConfig(cwd);
 			const projectConfig = {
-				mcpId: result.id,
-				defaults: {
-					model: "claude-sonnet-4-20250514",
-					maxSteps: 10,
-				},
+				...DEFAULT_PROJECT_CONFIG,
+				...parentConfig,
+				mcpId: result.id, // Always use the new sandbox's mcpId
 			};
 
 			await writeFile(

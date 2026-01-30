@@ -47,6 +47,11 @@ export const startCommand = new Command("start")
 					false,
 				);
 				console.log();
+				console.log(chalk.bold("Test with MCP Inspector:"));
+				console.log(
+					`  npx @modelcontextprotocol/inspector --url ${result.previewUrl}`,
+				);
+				console.log();
 				console.log(
 					chalk.gray("Run 'waniwani mcp logs' to stream server output"),
 				);

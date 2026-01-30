@@ -72,21 +72,29 @@ waniwani mcp list --all         # Include stopped/expired MCPs
 waniwani mcp use <name>         # Select an MCP for subsequent commands
 waniwani mcp use <name> --global    # Save to global config
 waniwani mcp status             # Show current MCP status and server info
-waniwani mcp delete             # Delete sandbox and clear from config
+waniwani mcp delete             # Delete sandbox from cloud
+waniwani mcp clear              # Delete local project folder
 ```
+
+**Cleanup commands:**
+- `waniwani mcp delete` - Removes the sandbox from the cloud (keeps local files)
+- `waniwani mcp clear` - Removes the local project folder (keeps cloud sandbox)
 
 ### MCP Server Lifecycle
 
 Start, stop, and monitor your MCP server running in the sandbox.
 
 ```bash
-waniwani mcp start                  # Start MCP server (npm run dev) in background
-waniwani mcp start --command "node src/index.js"  # Custom start command
+waniwani mcp start                  # Install deps + start MCP server
 waniwani mcp stop                   # Stop the running MCP server
 waniwani mcp logs                   # Get current logs from the running server
 waniwani mcp logs -f                # Stream logs continuously (follow mode)
 waniwani mcp logs --follow          # Same as -f
 ```
+
+The `start` command automatically:
+1. Installs dependencies (`npm install`)
+2. Runs the dev server (`npm run dev`)
 
 **Typical workflow:**
 ```bash
@@ -101,6 +109,19 @@ waniwani push                   # Push new changes
 waniwani mcp stop               # Stop server
 waniwani mcp start              # Restart with changes
 ```
+
+### Testing with MCP Inspector
+
+After starting the server, `waniwani mcp start` displays an MCP Inspector command you can run to test your tools interactively:
+
+```bash
+npx @modelcontextprotocol/inspector --url <preview-url>
+```
+
+The inspector provides a web UI to:
+- List all available tools
+- Call tools with custom inputs
+- View tool responses
 
 ### Deployment
 
