@@ -18,7 +18,7 @@ export const useCommand = new Command("use")
 			const spinner = ora("Fetching MCPs...").start();
 
 			// Fetch all MCPs
-			const mcps = await api.get<McpListResponse>("/api/admin/mcps");
+			const mcps = await api.get<McpListResponse>("/api/mcp/sandboxes");
 
 			spinner.stop();
 

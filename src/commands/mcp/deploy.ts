@@ -31,7 +31,7 @@ export const deployCommand = new Command("deploy")
 			const spinner = ora("Deploying to GitHub...").start();
 
 			const result = await api.post<DeployResponse>(
-				`/api/admin/mcps/${mcpId}/deploy`,
+				`/api/mcp/sandboxes/${mcpId}/deploy`,
 				{
 					repoName: options.repo,
 					org: options.org,
