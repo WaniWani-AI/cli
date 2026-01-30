@@ -1,19 +1,20 @@
 ---
 name: waniwani
-description: Create and manage MCP server sandboxes, read/write files, run commands, and deploy to production. Use when the user needs to develop MCP servers, manage sandbox files, or deploy to GitHub and Vercel.
-allowed-tools: Bash(waniwani:*)
+description: Create and manage MCP servers with local development workflow. Use when the user needs to develop MCP servers, manage sandbox files, or deploy to GitHub and Vercel.
+allowed-tools: Bash(waniwani:*), Write, Read, Glob
 ---
 
 # MCP Development with WaniWani CLI
 
-## Quick start
+## Quick Start
 
 ```bash
-waniwani login                          # Authenticate with WaniWani
-waniwani mcp create my-server           # Create a new MCP sandbox
-waniwani mcp file write src/index.ts --file ./local.ts  # Upload file
-waniwani mcp run-command npm install    # Run commands in sandbox
-waniwani mcp deploy                     # Deploy to GitHub + Vercel
+waniwani login                # Authenticate with WaniWani
+waniwani init my-mcp          # Create sandbox + clone template locally
+cd my-mcp
+waniwani push                 # Sync files to sandbox
+waniwani mcp start            # Start the server
+waniwani mcp logs -f          # Stream server logs
 ```
 
 ## Limitations
@@ -21,15 +22,15 @@ waniwani mcp deploy                     # Deploy to GitHub + Vercel
 - **Sandboxes are for MCP servers** - The preview URL serves MCP protocol (SSE), not HTTP. Don't use for static sites or regular web apps.
 - **No persistent storage** - Sandboxes expire after ~30 minutes of inactivity.
 
-## Core workflow
+## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Create sandbox**: `waniwani mcp create <name>`
-3. **Write code**: Use `waniwani mcp file write` to push files to sandbox
-4. **Install deps**: `waniwani mcp run-command npm install`
+2. **Initialize**: `waniwani init <name>` (creates sandbox + clones template locally)
+3. **Develop locally**: Edit files with full IDE support, autocomplete, linting
+4. **Push changes**: `waniwani push` to sync local files to sandbox
 5. **Start server**: `waniwani mcp start` (runs in background)
 6. **Monitor logs**: `waniwani mcp logs -f` (stream server output)
-7. **Deploy**: `waniwani mcp deploy`
+7. **Deploy**: `waniwani mcp deploy` when ready for production
 
 ## Commands
 
@@ -41,52 +42,32 @@ waniwani login --no-browser     # Get URL without opening browser
 waniwani logout                 # Clear stored credentials
 ```
 
+### Initialize Project
+
+```bash
+waniwani init <name>            # Create sandbox + clone template to ./<name>/
+```
+
+This creates a local directory with the MCP template and links it to a cloud sandbox.
+
+### Sync & Development
+
+```bash
+waniwani push                   # Sync local files to sandbox
+waniwani push --dry-run         # Show what would be synced without uploading
+waniwani dev                    # Watch mode - auto-sync on file change
+waniwani dev --no-initial-sync  # Skip initial sync, just watch for changes
+```
+
 ### MCP Sandbox Management
 
 ```bash
-waniwani mcp create <name>      # Create a new MCP sandbox
-waniwani mcp create <name> --global  # Save to global config
 waniwani mcp list               # List all active MCPs
 waniwani mcp list --all         # Include stopped/expired MCPs
 waniwani mcp use <name>         # Select an MCP for subsequent commands
 waniwani mcp use <name> --global    # Save to global config
 waniwani mcp status             # Show current MCP status and server info
-waniwani mcp status --mcp-id <id>   # Status for specific MCP
-waniwani mcp stop               # Stop the running MCP server
-waniwani mcp stop --mcp-id <id>     # Stop server for specific sandbox
 waniwani mcp delete             # Delete sandbox and clear from config
-waniwani mcp delete --mcp-id <id>   # Delete specific sandbox
-```
-
-### File Operations
-
-All paths are relative to the project root. Leading slashes are optional.
-
-```bash
-# List files
-waniwani mcp file list                  # List project root
-waniwani mcp file list src              # List specific directory
-
-# Read files from sandbox
-waniwani mcp file read src/index.ts     # Print to stdout
-waniwani mcp file read src/index.ts --output local.ts  # Save locally
-
-# Write files to sandbox
-waniwani mcp file write src/new.ts --content "export const foo = 1;"
-waniwani mcp file write src/new.ts --file ./local-file.ts
-```
-
-### Run Commands in Sandbox
-
-Commands run in the project root by default.
-
-```bash
-waniwani mcp run-command npm install        # Install dependencies
-waniwani mcp run-command npm run build      # Build the project
-waniwani mcp run-command "ls -la"           # Quote commands with flags
-waniwani mcp run-command --cwd src ls       # Set working directory
-waniwani mcp run-command --timeout 60000 npm run build  # Custom timeout (ms)
-waniwani mcp run-command --stream npm install  # Stream output in real-time
 ```
 
 ### MCP Server Lifecycle
@@ -100,19 +81,20 @@ waniwani mcp stop                   # Stop the running MCP server
 waniwani mcp logs                   # Get current logs from the running server
 waniwani mcp logs -f                # Stream logs continuously (follow mode)
 waniwani mcp logs --follow          # Same as -f
-waniwani mcp logs <cmdId>           # Get logs from a specific command
-waniwani mcp logs <cmdId> -f        # Stream logs from a specific command
 ```
 
 **Typical workflow:**
 ```bash
-waniwani mcp create my-server       # Create sandbox
-# ... write files, npm install ...
-waniwani mcp start                  # Start the server
-waniwani mcp logs -f                # Monitor output (Ctrl+C to exit)
-# Make changes to files...
-waniwani mcp stop                   # Stop server
-waniwani mcp start                  # Restart with changes
+waniwani init my-server         # Initialize project
+cd my-server
+# ... edit files locally ...
+waniwani push                   # Sync changes
+waniwani mcp start              # Start the server
+waniwani mcp logs -f            # Monitor output (Ctrl+C to exit)
+# Make more changes locally...
+waniwani push                   # Push new changes
+waniwani mcp stop               # Stop server
+waniwani mcp start              # Restart with changes
 ```
 
 ### Deployment
@@ -142,82 +124,58 @@ waniwani --verbose <command>        # Enable verbose logging
 
 | File | Purpose |
 |------|---------|
-| `~/.waniwani/config.json` | Global user preferences, active MCP |
+| `~/.waniwani/settings.json` | Global user preferences, active MCP |
 | `~/.waniwani/auth.json` | OAuth tokens (access, refresh, expiry) |
-| `.waniwani/settings.local.json` | Per-project settings |
+| `.waniwani/settings.json` | Per-project settings (sandbox ID) |
 
-## Sandbox File System
+## Local Project Structure
+
+After `waniwani init my-mcp`:
 
 ```
-/                       # Project root (all paths relative to here)
-├── src/                # Source code
-│   └── index.ts        # Main entry point
-├── package.json        # Dependencies
-├── tsconfig.json       # TypeScript config
-└── node_modules/       # Installed packages
+my-mcp/
+├── .waniwani/
+│   └── settings.json         # Sandbox ID (auto-generated)
+├── app/
+│   ├── mcp/route.ts          # Register tools & widgets here
+│   └── ({{MCP_NAME}})/       # Widget pages
+├── lib/
+│   └── {{MCP_NAME}}/
+│       ├── tools/            # Your tool implementations
+│       └── widgets/          # Your widget definitions
+├── package.json
+└── CLAUDE.md                 # MCP development guide
 ```
 
-## Templates
+## MCP Template
 
-### Basic MCP Server
+Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template includes tools, widgets, and all framework utilities.
 
-Use this to bootstrap a new MCP server with one tool.
-
-**1. Create sandbox:**
-```bash
-waniwani mcp create my-server
-```
-
-**2. Write package.json:**
-```bash
-waniwani mcp file write package.json --content '{
-  "name": "my-mcp",
-  "type": "module",
-  "scripts": { "dev": "tsx src/index.ts" },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
-  }
-}'
-```
-
-**3. Write src/index.ts:**
-```bash
-waniwani mcp file write src/index.ts --content 'import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
-const server = new McpServer({ name: "my-mcp", version: "1.0.0" });
-
-server.tool("hello", "Says hello", {
-  name: { type: "string", description: "Name to greet" }
-}, async ({ name }) => ({
-  content: [{ type: "text", text: `Hello, ${name}!` }]
-}));
-
-const transport = new StdioServerTransport();
-await server.connect(transport);'
-```
-
-**4. Install:**
-```bash
-waniwani mcp run-command npm install
-```
+**See the template's CLAUDE.md for:**
+- Project structure and code boundaries
+- How to create tools using `createTool()`
+- How to create widgets with UI that renders in ChatGPT
+- Available React hooks for ChatGPT integration
+- Deployment instructions
 
 ## Troubleshooting
 
 ### Preview URL shows blank page
 The sandbox serves MCP protocol (SSE), not HTTP. The preview URL is for MCP clients to connect, not for browsers. This is expected behavior.
 
-### Commands with pipes or flags don't work
-Quote the entire command:
+### Sandbox expired
+Sandboxes expire after ~30 minutes of inactivity. The sandbox will auto-resume when you run commands:
 ```bash
-waniwani mcp run-command "ls -la"
-waniwani mcp run-command "cat file.txt | head -5"  # Note: pipes may still fail
+waniwani push       # Will resume sandbox if expired
+waniwani mcp start  # Will resume sandbox if expired
 ```
 
-### Sandbox expired
-Sandboxes expire after ~30 minutes of inactivity. Create a new one:
+### Changes not reflected
+Make sure you've pushed your changes:
 ```bash
-waniwani mcp create my-server
+waniwani push
+```
+Or use watch mode for automatic syncing:
+```bash
+waniwani dev
 ```
