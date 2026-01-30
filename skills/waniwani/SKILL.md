@@ -105,7 +105,7 @@ waniwani mcp stop && waniwani mcp start  # Restart server
 After starting the server, `waniwani mcp start` displays an MCP Inspector command you can run to test your tools interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector --url <preview-url>
+npx @modelcontextprotocol/inspector --url <preview-url>/mcp
 ```
 
 The inspector provides a web UI to:

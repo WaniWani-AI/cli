@@ -49,7 +49,7 @@ export const startCommand = new Command("start")
 				console.log();
 				console.log(chalk.bold("Test with MCP Inspector:"));
 				console.log(
-					`  npx @modelcontextprotocol/inspector --url ${result.previewUrl}`,
+					`  npx @modelcontextprotocol/inspector --url ${result.previewUrl}/mcp`,
 				);
 				console.log();
 				console.log(
