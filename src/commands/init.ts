@@ -1,23 +1,18 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../lib/api.js";
+import {
+	CONFIG_FILE_NAME,
+	initConfigAt,
+	LOCAL_CONFIG_DIR,
+} from "../lib/config.js";
 import { handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 import { pullFilesFromSandbox } from "../lib/sync.js";
 import type { CreateMcpResponse } from "../types/index.js";
-
-const PROJECT_CONFIG_DIR = ".waniwani";
-const PROJECT_CONFIG_FILE = "settings.json";
-
-const DEFAULT_PROJECT_CONFIG = {
-	defaults: {
-		model: "claude-sonnet-4-20250514",
-		maxSteps: 10,
-	},
-};
 
 /**
  * Load parent .waniwani/settings.json if it exists
@@ -25,7 +20,7 @@ const DEFAULT_PROJECT_CONFIG = {
 async function loadParentConfig(
 	cwd: string,
 ): Promise<Record<string, unknown> | null> {
-	const parentConfigPath = join(cwd, PROJECT_CONFIG_DIR, PROJECT_CONFIG_FILE);
+	const parentConfigPath = join(cwd, LOCAL_CONFIG_DIR, CONFIG_FILE_NAME);
 	if (!existsSync(parentConfigPath)) {
 		return null;
 	}
@@ -87,23 +82,11 @@ export const initCommand = new Command("init")
 
 			// Create .waniwani/settings.json with mcpId
 			// Inherit settings from parent .waniwani if it exists
-			const configDir = join(projectDir, PROJECT_CONFIG_DIR);
-			const configPath = join(configDir, PROJECT_CONFIG_FILE);
-
-			await mkdir(configDir, { recursive: true });
-
 			const parentConfig = await loadParentConfig(cwd);
-			const projectConfig = {
-				...DEFAULT_PROJECT_CONFIG,
+			await initConfigAt(projectDir, {
 				...parentConfig,
 				mcpId: result.id, // Always use the new sandbox's mcpId
-			};
-
-			await writeFile(
-				configPath,
-				JSON.stringify(projectConfig, null, "\t"),
-				"utf-8",
-			);
+			});
 
 			spinner.succeed("MCP project created");
 

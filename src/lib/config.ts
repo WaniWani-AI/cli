@@ -4,16 +4,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
-const LOCAL_DIR = join(process.cwd(), ".waniwani");
-const LOCAL_FILE = join(LOCAL_DIR, "settings.json");
-const GLOBAL_DIR = join(homedir(), ".waniwani");
-const GLOBAL_FILE = join(GLOBAL_DIR, "settings.json");
+export const LOCAL_CONFIG_DIR = ".waniwani";
+export const CONFIG_FILE_NAME = "settings.json";
+
+const LOCAL_DIR = join(process.cwd(), LOCAL_CONFIG_DIR);
+const LOCAL_FILE = join(LOCAL_DIR, CONFIG_FILE_NAME);
+const GLOBAL_DIR = join(homedir(), LOCAL_CONFIG_DIR);
+const GLOBAL_FILE = join(GLOBAL_DIR, CONFIG_FILE_NAME);
 const DEFAULT_API_URL = "https://app.waniwani.ai";
 
 const ConfigSchema = z.object({
-	defaults: z
-		.object({ model: z.string(), maxSteps: z.number() })
-		.default({ model: "claude-sonnet-4-20250514", maxSteps: 10 }),
 	mcpId: z.string().nullable().default(null),
 	apiUrl: z.string().nullable().default(null),
 });
@@ -52,16 +52,6 @@ class Config {
 		await writeFile(this.file, JSON.stringify(data, null, "\t"));
 	}
 
-	async getDefaults() {
-		return (await this.load()).defaults;
-	}
-
-	async setDefaults(defaults: Partial<ConfigData["defaults"]>) {
-		const data = await this.load();
-		data.defaults = { ...data.defaults, ...defaults };
-		await this.save(data);
-	}
-
 	async getMcpId() {
 		return (await this.load()).mcpId;
 	}
@@ -90,3 +80,22 @@ class Config {
 
 export const config = new Config();
 export const globalConfig = new Config(true);
+
+/**
+ * Initialize a .waniwani/settings.json at the given directory.
+ * Returns the created config data and path.
+ */
+export async function initConfigAt(
+	dir: string,
+	overrides: Partial<ConfigData> = {},
+): Promise<{ path: string; config: ConfigData }> {
+	const configDir = join(dir, LOCAL_CONFIG_DIR);
+	const configPath = join(configDir, CONFIG_FILE_NAME);
+
+	await mkdir(configDir, { recursive: true });
+
+	const data = ConfigSchema.parse(overrides);
+	await writeFile(configPath, JSON.stringify(data, null, "\t"), "utf-8");
+
+	return { path: configPath, config: data };
+}

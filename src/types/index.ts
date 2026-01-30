@@ -70,18 +70,6 @@ export interface McpToolResult {
 	duration: number;
 }
 
-export const McpTestResponseSchema = z.object({
-	tools: z.array(
-		z.object({
-			name: z.string(),
-			description: z.string().optional(),
-			inputSchema: z.record(z.string(), z.unknown()).optional(),
-		}),
-	),
-});
-
-export type McpTestResponse = z.infer<typeof McpTestResponseSchema>;
-
 export const McpCallResponseSchema = z.object({
 	result: z.unknown(),
 	duration: z.number(),
@@ -108,37 +96,6 @@ export const DeployResponseSchema = z.object({
 });
 
 export type DeployResponse = z.infer<typeof DeployResponseSchema>;
-
-// ============================================
-// Task Types
-// ============================================
-
-export interface TaskStep {
-	type: "text" | "tool_call";
-	text?: string;
-	tool?: string;
-	input?: Record<string, unknown>;
-	output?: string;
-}
-
-// SSE event types
-export const TaskStepEventSchema = z.object({
-	type: z.enum(["text", "tool_call"]),
-	content: z.string().optional(),
-	tool: z.string().optional(),
-	input: z.record(z.string(), z.unknown()).optional(),
-	output: z.string().optional(),
-});
-
-export type TaskStepEvent = z.infer<typeof TaskStepEventSchema>;
-
-export const TaskDoneEventSchema = z.object({
-	success: z.boolean(),
-	stepCount: z.number(),
-	maxStepsReached: z.boolean().optional(),
-});
-
-export type TaskDoneEvent = z.infer<typeof TaskDoneEventSchema>;
 
 // ============================================
 // Organization Types

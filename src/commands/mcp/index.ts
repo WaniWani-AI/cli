@@ -8,7 +8,6 @@ import { runCommandCommand } from "./run-command.js";
 import { startCommand } from "./start.js";
 import { statusCommand } from "./status.js";
 import { stopCommand } from "./stop.js";
-import { testCommand } from "./test.js";
 import { useCommand } from "./use.js";
 
 export const mcpCommand = new Command("mcp")
@@ -20,7 +19,6 @@ export const mcpCommand = new Command("mcp")
 	.addCommand(stopCommand)
 	.addCommand(logsCommand)
 	.addCommand(deleteCommand)
-	.addCommand(testCommand)
 	.addCommand(deployCommand)
 	.addCommand(fileCommand)
 	.addCommand(runCommandCommand);

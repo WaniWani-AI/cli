@@ -138,11 +138,20 @@ waniwani --verbose <command>        # Enable verbose logging
 
 ## Configuration
 
+### Config Files
+
 | File | Purpose |
 |------|---------|
-| `~/.waniwani/settings.json` | Global user preferences, active MCP |
+| `~/.waniwani/settings.json` | Global settings: active MCP, API URL |
 | `~/.waniwani/auth.json` | OAuth tokens (access, refresh, expiry) |
-| `.waniwani/settings.json` | Per-project settings (sandbox ID) |
+| `<project>/.waniwani/settings.json` | Per-project settings (sandbox ID, API URL) |
+
+### Initialize Config
+
+```bash
+waniwani config init            # Create .waniwani/settings.json in current directory
+waniwani config init --force    # Overwrite existing config
+```
 
 ## Local Project Structure
 
