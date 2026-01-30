@@ -72,12 +72,7 @@ waniwani mcp use <name>         # Select an MCP for subsequent commands
 waniwani mcp use <name> --global    # Save to global config
 waniwani mcp status             # Show current MCP status and server info
 waniwani mcp delete             # Delete sandbox from cloud
-waniwani mcp clear              # Delete local project folder
 ```
-
-**Cleanup commands:**
-- `waniwani mcp delete` - Removes the sandbox from the cloud (keeps local files)
-- `waniwani mcp clear` - Removes the local project folder (keeps cloud sandbox)
 
 ### MCP Server Lifecycle
 
