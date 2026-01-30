@@ -10,10 +10,8 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani init my-mcp          # Create sandbox + download template locally
+waniwani init my-mcp          # Create sandbox, download template, install deps, start server
 cd my-mcp
-waniwani push                 # Sync files to sandbox
-waniwani mcp start            # Start the server
 waniwani mcp logs -f          # Stream server logs
 ```
 
@@ -25,11 +23,11 @@ waniwani mcp logs -f          # Stream server logs
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani init <name>` (creates sandbox + downloads template locally)
-3. **Develop locally**: Edit files with full IDE support, autocomplete, linting
-4. **Push changes**: `waniwani push` to sync local files to sandbox
-5. **Start server**: `waniwani mcp start` (runs in background)
-6. **Monitor logs**: `waniwani mcp logs -f` (stream server output)
+2. **Initialize**: `waniwani init <name>` (creates sandbox, downloads template, installs deps, starts server)
+3. **Monitor logs**: `waniwani mcp logs -f` (stream server output)
+4. **Develop locally**: Edit files with full IDE support, autocomplete, linting
+5. **Push changes**: `waniwani push` to sync local files to sandbox
+6. **Restart server**: `waniwani mcp stop` then `waniwani mcp start`
 7. **Deploy**: `waniwani mcp deploy` when ready for production
 
 ## Commands
@@ -52,6 +50,7 @@ This command:
 1. Creates a cloud sandbox with the MCP template pre-loaded
 2. Downloads all template files from the sandbox to a local `./<name>/` directory
 3. Links the local project to the sandbox via `.waniwani/settings.json`
+4. Installs dependencies and starts the MCP server
 
 No GitHub access required - the template is served directly from the sandbox.
 
@@ -93,21 +92,17 @@ waniwani mcp logs --follow          # Same as -f
 ```
 
 The `start` command automatically:
-1. Installs dependencies (`npm install`)
+1. Installs dependencies if needed (`npm install`)
 2. Runs the dev server (`npm run dev`)
 
 **Typical workflow:**
 ```bash
-waniwani init my-server         # Initialize project
+waniwani init my-server         # Initialize + install deps + start server
 cd my-server
-# ... edit files locally ...
-waniwani push                   # Sync changes
-waniwani mcp start              # Start the server
 waniwani mcp logs -f            # Monitor output (Ctrl+C to exit)
-# Make more changes locally...
-waniwani push                   # Push new changes
-waniwani mcp stop               # Stop server
-waniwani mcp start              # Restart with changes
+# ... edit files locally ...
+waniwani push                   # Sync changes to sandbox
+waniwani mcp stop && waniwani mcp start  # Restart server
 ```
 
 ### Testing with MCP Inspector
