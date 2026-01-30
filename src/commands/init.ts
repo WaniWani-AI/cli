@@ -2,58 +2,118 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
+import degit from "degit";
+import ora from "ora";
+import { api } from "../lib/api.js";
 import { handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
+import type { CreateMcpResponse } from "../types/index.js";
 
 const PROJECT_CONFIG_DIR = ".waniwani";
-const PROJECT_CONFIG_FILE = "settings.local.json";
+const PROJECT_CONFIG_FILE = "settings.json";
+
+interface InitMcpResponse extends CreateMcpResponse {
+	templateGitUrl: string;
+	templateBranch: string;
+}
 
 export const initCommand = new Command("init")
-	.description("Initialize WaniWani project config in current directory")
-	.action(async (_, command) => {
+	.description("Create a new MCP project from template")
+	.argument("<name>", "Name for the MCP project")
+	.action(async (name: string, _, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
 		try {
 			const cwd = process.cwd();
-			const configDir = join(cwd, PROJECT_CONFIG_DIR);
-			const configPath = join(configDir, PROJECT_CONFIG_FILE);
+			const projectDir = join(cwd, name);
 
-			if (existsSync(configDir)) {
+			// Check if directory already exists
+			if (existsSync(projectDir)) {
 				if (json) {
 					formatOutput(
-						{ initialized: false, message: "Already initialized" },
+						{
+							success: false,
+							error: `Directory "${name}" already exists`,
+						},
 						true,
 					);
 				} else {
-					console.log("Project already initialized (.waniwani/ exists)");
+					console.error(`Error: Directory "${name}" already exists`);
 				}
-				return;
+				process.exit(1);
 			}
+
+			// Create sandbox on backend
+			const spinner = ora("Creating MCP sandbox...").start();
+
+			const result = await api.post<InitMcpResponse>("/api/mcp/sandboxes", {
+				name,
+			});
+
+			spinner.text = "Cloning template...";
+
+			// Clone template using degit (format: repo#branch)
+			const templateRef = result.templateBranch
+				? `${result.templateGitUrl}#${result.templateBranch}`
+				: result.templateGitUrl;
+
+			const emitter = degit(templateRef, {
+				cache: false,
+				force: true,
+				verbose: false,
+			});
+
+			await emitter.clone(projectDir);
+
+			spinner.text = "Setting up project config...";
+
+			// Create .waniwani/settings.json with mcpId
+			const configDir = join(projectDir, PROJECT_CONFIG_DIR);
+			const configPath = join(configDir, PROJECT_CONFIG_FILE);
 
 			await mkdir(configDir, { recursive: true });
 
-			const defaultConfig = {
-				mcpId: null,
-				defaults: {},
+			const projectConfig = {
+				mcpId: result.id,
+				defaults: {
+					model: "claude-sonnet-4-20250514",
+					maxSteps: 10,
+				},
 			};
 
 			await writeFile(
 				configPath,
-				JSON.stringify(defaultConfig, null, "\t"),
+				JSON.stringify(projectConfig, null, "\t"),
 				"utf-8",
 			);
 
+			spinner.succeed("MCP project created");
+
 			if (json) {
-				formatOutput({ initialized: true, path: configDir }, true);
+				formatOutput(
+					{
+						success: true,
+						projectDir,
+						mcpId: result.id,
+						sandboxId: result.sandboxId,
+						previewUrl: result.previewUrl,
+					},
+					true,
+				);
 			} else {
-				formatSuccess("Initialized WaniWani project config", false);
 				console.log();
-				console.log(`  Created: ${PROJECT_CONFIG_DIR}/${PROJECT_CONFIG_FILE}`);
+				formatSuccess(`MCP project "${name}" created!`, false);
 				console.log();
-				console.log("Now run:");
-				console.log('  waniwani mcp create "my-mcp"');
-				console.log("  waniwani mcp use <name>");
+				console.log(`  Project:     ${projectDir}`);
+				console.log(`  MCP ID:      ${result.id}`);
+				console.log(`  Preview URL: ${result.previewUrl}`);
+				console.log();
+				console.log("Next steps:");
+				console.log(`  cd ${name}`);
+				console.log("  waniwani push         # Sync files to sandbox");
+				console.log("  waniwani dev          # Watch mode with auto-sync");
+				console.log('  waniwani task "..."   # Send tasks to Claude');
 			}
 		} catch (error) {
 			handleError(error, json);
