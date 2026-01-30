@@ -10,7 +10,7 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani init my-mcp          # Create sandbox + clone template locally
+waniwani init my-mcp          # Create sandbox + download template locally
 cd my-mcp
 waniwani push                 # Sync files to sandbox
 waniwani mcp start            # Start the server
@@ -25,7 +25,7 @@ waniwani mcp logs -f          # Stream server logs
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani init <name>` (creates sandbox + clones template locally)
+2. **Initialize**: `waniwani init <name>` (creates sandbox + downloads template locally)
 3. **Develop locally**: Edit files with full IDE support, autocomplete, linting
 4. **Push changes**: `waniwani push` to sync local files to sandbox
 5. **Start server**: `waniwani mcp start` (runs in background)
@@ -45,10 +45,15 @@ waniwani logout                 # Clear stored credentials
 ### Initialize Project
 
 ```bash
-waniwani init <name>            # Create sandbox + clone template to ./<name>/
+waniwani init <name>            # Create sandbox + download template to ./<name>/
 ```
 
-This creates a local directory with the MCP template and links it to a cloud sandbox.
+This command:
+1. Creates a cloud sandbox with the MCP template pre-loaded
+2. Downloads all template files from the sandbox to a local `./<name>/` directory
+3. Links the local project to the sandbox via `.waniwani/settings.json`
+
+No GitHub access required - the template is served directly from the sandbox.
 
 ### Sync & Development
 
@@ -149,7 +154,9 @@ my-mcp/
 
 ## MCP Template
 
-Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template includes tools, widgets, and all framework utilities.
+Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is automatically loaded into the sandbox and downloaded to your local machine during `waniwani init` - no separate GitHub access required.
+
+The template includes tools, widgets, and all framework utilities.
 
 **See the template's CLAUDE.md for:**
 - Project structure and code boundaries

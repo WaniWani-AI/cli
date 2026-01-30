@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import ignore from "ignore";
+import type { PullFilesResponse } from "../types/index.js";
+import { api } from "./api.js";
 import { detectBinary, isBinaryPath } from "./utils.js";
 
 const PROJECT_DIR = ".waniwani";
@@ -144,6 +146,41 @@ export async function collectFiles(projectRoot: string): Promise<FileToSync[]> {
 
 	await walk(projectRoot);
 	return files;
+}
+
+/**
+ * Pull all files from a sandbox to a local directory.
+ * Uses a single API call to fetch all files recursively.
+ */
+export async function pullFilesFromSandbox(
+	mcpId: string,
+	targetDir: string,
+): Promise<{ count: number; files: string[] }> {
+	// Fetch all files from the sandbox in one request
+	const result = await api.get<PullFilesResponse>(
+		`/api/mcp/sandboxes/${mcpId}/files/pull`,
+	);
+
+	const writtenFiles: string[] = [];
+
+	for (const file of result.files) {
+		const localPath = join(targetDir, file.path);
+		const dir = dirname(localPath);
+
+		// Ensure directory exists
+		await mkdir(dir, { recursive: true });
+
+		// Write file content
+		if (file.encoding === "base64") {
+			await writeFile(localPath, Buffer.from(file.content, "base64"));
+		} else {
+			await writeFile(localPath, file.content, "utf8");
+		}
+
+		writtenFiles.push(file.path);
+	}
+
+	return { count: writtenFiles.length, files: writtenFiles };
 }
 
 /**

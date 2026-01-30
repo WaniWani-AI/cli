@@ -2,20 +2,15 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
-import degit from "degit";
 import ora from "ora";
 import { api } from "../lib/api.js";
 import { handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
+import { pullFilesFromSandbox } from "../lib/sync.js";
 import type { CreateMcpResponse } from "../types/index.js";
 
 const PROJECT_CONFIG_DIR = ".waniwani";
 const PROJECT_CONFIG_FILE = "settings.json";
-
-interface InitMcpResponse extends CreateMcpResponse {
-	templateGitUrl: string;
-	templateBranch: string;
-}
 
 export const initCommand = new Command("init")
 	.description("Create a new MCP project from template")
@@ -44,27 +39,20 @@ export const initCommand = new Command("init")
 				process.exit(1);
 			}
 
-			// Create sandbox on backend
+			// Create sandbox on backend (API pushes template files to sandbox)
 			const spinner = ora("Creating MCP sandbox...").start();
 
-			const result = await api.post<InitMcpResponse>("/api/mcp/sandboxes", {
+			const result = await api.post<CreateMcpResponse>("/api/mcp/sandboxes", {
 				name,
 			});
 
-			spinner.text = "Cloning template...";
+			spinner.text = "Downloading template files...";
 
-			// Clone template using degit (format: repo#branch)
-			const templateRef = result.templateBranch
-				? `${result.templateGitUrl}#${result.templateBranch}`
-				: result.templateGitUrl;
+			// Create project directory
+			await mkdir(projectDir, { recursive: true });
 
-			const emitter = degit(templateRef, {
-				cache: false,
-				force: true,
-				verbose: false,
-			});
-
-			await emitter.clone(projectDir);
+			// Pull template files from sandbox to local directory
+			await pullFilesFromSandbox(result.id, projectDir);
 
 			spinner.text = "Setting up project config...";
 

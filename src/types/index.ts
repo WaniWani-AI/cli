@@ -255,3 +255,19 @@ export const LogEventSchema = z.object({
 	error: z.string().optional(),
 });
 export type LogEvent = z.infer<typeof LogEventSchema>;
+
+// ============================================
+// Pull Files Types (for init)
+// ============================================
+
+// Recursive file listing - returns all files with their content
+export const PullFilesResponseSchema = z.object({
+	files: z.array(
+		z.object({
+			path: z.string(), // Relative path from sandbox root (e.g., "src/index.ts")
+			content: z.string(),
+			encoding: z.enum(["utf8", "base64"]),
+		}),
+	),
+});
+export type PullFilesResponse = z.infer<typeof PullFilesResponseSchema>;
