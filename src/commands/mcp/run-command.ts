@@ -4,7 +4,7 @@ import ora from "ora";
 import { api } from "../../lib/api.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
-import { requireMcpId } from "../../lib/utils.js";
+import { requireMcpId, requireSessionId } from "../../lib/utils.js";
 import type { RunCommandResponse } from "../../types/index.js";
 
 export const runCommandCommand = new Command("run-command")
@@ -23,6 +23,7 @@ export const runCommandCommand = new Command("run-command")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId(mcpId);
 
 			const timeout = options.timeout
 				? Number.parseInt(options.timeout, 10)
@@ -31,7 +32,7 @@ export const runCommandCommand = new Command("run-command")
 			const spinner = ora(`Running: ${cmd} ${args.join(" ")}`.trim()).start();
 
 			const result = await api.post<RunCommandResponse>(
-				`/api/mcp/repositories/${mcpId}/sandbox/commands`,
+				`/api/mcp/sessions/${sessionId}/commands`,
 				{
 					command: cmd,
 					args: args.length > 0 ? args : undefined,

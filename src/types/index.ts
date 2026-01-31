@@ -198,6 +198,16 @@ export const WriteFilesResponseSchema = z.object({
 });
 export type WriteFilesResponse = z.infer<typeof WriteFilesResponseSchema>;
 
+// Deploy to GitHub response
+export const DeployToGithubResponseSchema = z.object({
+	commitSha: z.string(),
+	githubRepo: z.string(),
+	message: z.string(),
+});
+export type DeployToGithubResponse = z.infer<
+	typeof DeployToGithubResponseSchema
+>;
+
 // Read file
 export const ReadFileResponseSchema = z.object({
 	path: z.string(),

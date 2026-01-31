@@ -54,21 +54,24 @@ export const devCommand = new Command("dev")
 
 			const spinner = ora("Starting development environment...").start();
 
-			// Step 1: Create or get sandbox
-			spinner.text = "Starting sandbox...";
+			// Step 1: Create or get session
+			spinner.text = "Starting session...";
+			let sessionId: string;
 			try {
-				await api.post<SandboxStartResponse>(
-					`/api/mcp/repositories/${mcpId}/sandbox`,
+				const sessionResponse = await api.post<SandboxStartResponse>(
+					`/api/mcp/repositories/${mcpId}/session`,
 					{},
 				);
+				sessionId = sessionResponse.sandbox.id;
 			} catch {
-				// Sandbox might already exist, try to get it
+				// Session might already exist, try to get it
 				const existing = await api.get<McpSandbox | null>(
-					`/api/mcp/repositories/${mcpId}/sandbox`,
+					`/api/mcp/repositories/${mcpId}/session`,
 				);
 				if (!existing) {
-					throw new CLIError("Failed to start sandbox", "SANDBOX_ERROR");
+					throw new CLIError("Failed to start session", "SESSION_ERROR");
 				}
+				sessionId = existing.id;
 			}
 
 			// Step 2: Sync current files to sandbox
@@ -76,7 +79,7 @@ export const devCommand = new Command("dev")
 			const files = await collectFiles(projectRoot);
 			if (files.length > 0) {
 				await api.post<WriteFilesResponse>(
-					`/api/mcp/repositories/${mcpId}/sandbox/files`,
+					`/api/mcp/sessions/${sessionId}/files`,
 					{ files },
 				);
 			}
@@ -84,7 +87,7 @@ export const devCommand = new Command("dev")
 			// Step 3: Start MCP server
 			spinner.text = "Starting MCP server...";
 			const serverResult = await api.post<ServerStartResponse>(
-				`/api/mcp/repositories/${mcpId}/sandbox/server`,
+				`/api/mcp/sessions/${sessionId}/server`,
 				{ action: "start" },
 			);
 
@@ -129,7 +132,7 @@ export const devCommand = new Command("dev")
 					if (file) {
 						try {
 							await api.post<WriteFilesResponse>(
-								`/api/mcp/repositories/${mcpId}/sandbox/files`,
+								`/api/mcp/sessions/${sessionId}/files`,
 								{ files: [file] },
 							);
 							console.log(`  Synced: ${relativePath}`);

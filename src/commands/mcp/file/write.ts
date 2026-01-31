@@ -4,7 +4,7 @@ import ora from "ora";
 import { api } from "../../../lib/api.js";
 import { CLIError, handleError } from "../../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../../lib/output.js";
-import { requireMcpId } from "../../../lib/utils.js";
+import { requireMcpId, requireSessionId } from "../../../lib/utils.js";
 import type { WriteFilesResponse } from "../../../types/index.js";
 
 export const writeCommand = new Command("write")
@@ -20,6 +20,7 @@ export const writeCommand = new Command("write")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId(mcpId);
 
 			// Get content from --content or --file
 			let content: string;
@@ -48,7 +49,7 @@ export const writeCommand = new Command("write")
 			const spinner = ora(`Writing ${path}...`).start();
 
 			const result = await api.post<WriteFilesResponse>(
-				`/api/mcp/repositories/${mcpId}/sandbox/files`,
+				`/api/mcp/sessions/${sessionId}/files`,
 				{
 					files: [{ path, content, encoding }],
 				},

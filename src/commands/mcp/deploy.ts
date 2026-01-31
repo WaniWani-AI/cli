@@ -6,7 +6,7 @@ import { CLIError, handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import { collectFiles, findProjectRoot } from "../../lib/sync.js";
 import { requireMcpId } from "../../lib/utils.js";
-import type { WriteFilesResponse } from "../../types/index.js";
+import type { DeployToGithubResponse } from "../../types/index.js";
 
 export const deployCommand = new Command("deploy")
 	.description("Push local files to GitHub and trigger deployment")
@@ -50,12 +50,12 @@ export const deployCommand = new Command("deploy")
 
 			spinner.text = `Pushing ${files.length} files to GitHub...`;
 
-			const result = await api.post<WriteFilesResponse>(
-				`/api/mcp/repositories/${mcpId}/github/files`,
+			const result = await api.post<DeployToGithubResponse>(
+				`/api/mcp/repositories/${mcpId}/deploy`,
 				{ files, message },
 			);
 
-			spinner.succeed(`Pushed ${result.written.length} files to GitHub`);
+			spinner.succeed(`Pushed to GitHub (${result.commitSha.slice(0, 7)})`);
 
 			if (json) {
 				formatOutput(result, true);

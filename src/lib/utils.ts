@@ -1,3 +1,5 @@
+import type { McpRepository } from "../types/index.js";
+import { api } from "./api.js";
 import { config } from "./config.js";
 import { McpError } from "./errors.js";
 
@@ -15,6 +17,24 @@ export async function requireMcpId(mcpId?: string): Promise<string> {
 		);
 	}
 	return configMcpId;
+}
+
+/**
+ * Get the active session ID for an MCP repository.
+ * Throws McpError if no active session exists.
+ */
+export async function requireSessionId(mcpId: string): Promise<string> {
+	const repository = await api.get<McpRepository>(
+		`/api/mcp/repositories/${mcpId}`,
+	);
+
+	if (!repository.activeSandbox) {
+		throw new McpError(
+			"No active session. Run 'waniwani mcp dev' to start development.",
+		);
+	}
+
+	return repository.activeSandbox.id;
 }
 
 /**

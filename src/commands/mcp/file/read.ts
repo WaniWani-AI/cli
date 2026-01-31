@@ -4,7 +4,7 @@ import ora from "ora";
 import { api } from "../../../lib/api.js";
 import { handleError, McpError } from "../../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../../lib/output.js";
-import { requireMcpId } from "../../../lib/utils.js";
+import { requireMcpId, requireSessionId } from "../../../lib/utils.js";
 import type { ReadFileResponse } from "../../../types/index.js";
 
 export const readCommand = new Command("read")
@@ -19,12 +19,13 @@ export const readCommand = new Command("read")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId(mcpId);
 
 			const encoding = options.base64 ? "base64" : "utf8";
 			const spinner = ora(`Reading ${path}...`).start();
 
 			const result = await api.get<ReadFileResponse>(
-				`/api/mcp/repositories/${mcpId}/sandbox/files?path=${encodeURIComponent(path)}&encoding=${encoding}`,
+				`/api/mcp/sessions/${sessionId}/files?path=${encodeURIComponent(path)}&encoding=${encoding}`,
 			);
 
 			spinner.stop();

@@ -3,7 +3,7 @@ import ora from "ora";
 import { api } from "../../lib/api.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import { requireMcpId } from "../../lib/utils.js";
+import { requireMcpId, requireSessionId } from "../../lib/utils.js";
 
 export const stopCommand = new Command("stop")
 	.description("Stop the development environment (sandbox + server)")
@@ -14,20 +14,21 @@ export const stopCommand = new Command("stop")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId(mcpId);
 
 			const spinner = ora("Stopping development environment...").start();
 
 			// Stop server first
 			try {
-				await api.post(`/api/mcp/repositories/${mcpId}/sandbox/server`, {
+				await api.post(`/api/mcp/sessions/${sessionId}/server`, {
 					action: "stop",
 				});
 			} catch {
 				// Server might not be running, continue
 			}
 
-			// Delete sandbox
-			await api.delete(`/api/mcp/repositories/${mcpId}/sandbox`);
+			// Delete session
+			await api.delete(`/api/mcp/sessions/${sessionId}`);
 
 			spinner.succeed("Development environment stopped");
 

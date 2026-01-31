@@ -5,7 +5,7 @@ import { api } from "../../lib/api.js";
 import { auth } from "../../lib/auth.js";
 import { AuthError, handleError, McpError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
-import { requireMcpId } from "../../lib/utils.js";
+import { requireMcpId, requireSessionId } from "../../lib/utils.js";
 import type { LogEvent, ServerStatusResponse } from "../../types/index.js";
 
 export const logsCommand = new Command("logs")
@@ -32,6 +32,7 @@ export const logsCommand = new Command("logs")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId(mcpId);
 
 			const token = await auth.getAccessToken();
 			if (!token) {
@@ -46,7 +47,7 @@ export const logsCommand = new Command("logs")
 			if (!cmdId) {
 				const spinner = ora("Getting server status...").start();
 				const status = await api.post<ServerStatusResponse>(
-					`/api/mcp/repositories/${mcpId}/sandbox/server`,
+					`/api/mcp/sessions/${sessionId}/server`,
 					{ action: "status" },
 				);
 				spinner.stop();
@@ -61,7 +62,7 @@ export const logsCommand = new Command("logs")
 
 			const baseUrl = await api.getBaseUrl();
 			const streamParam = options.follow ? "?stream=true" : "";
-			const url = `${baseUrl}/api/mcp/repositories/${mcpId}/sandbox/commands/${cmdId}${streamParam}`;
+			const url = `${baseUrl}/api/mcp/sessions/${sessionId}/commands/${cmdId}${streamParam}`;
 
 			if (!json) {
 				console.log(chalk.gray(`Streaming logs for command ${cmdId}...`));

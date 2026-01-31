@@ -28,7 +28,7 @@ export const statusCommand = new Command("status")
 			if (result.activeSandbox) {
 				serverStatus = await api
 					.post<ServerStatusResponse>(
-						`/api/mcp/repositories/${mcpId}/sandbox/server`,
+						`/api/mcp/sessions/${result.activeSandbox.id}/server`,
 						{ action: "status" },
 					)
 					.catch(() => null);
