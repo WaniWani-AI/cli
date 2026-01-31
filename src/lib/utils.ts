@@ -1,3 +1,22 @@
+import { config } from "./config.js";
+import { McpError } from "./errors.js";
+
+/**
+ * Requires an MCP ID, falling back to the active MCP from config.
+ * Throws McpError if no MCP is available.
+ */
+export async function requireMcpId(mcpId?: string): Promise<string> {
+	if (mcpId) return mcpId;
+
+	const configMcpId = await config.getMcpId();
+	if (!configMcpId) {
+		throw new McpError(
+			"No active MCP. Run 'waniwani mcp init <name>' or 'waniwani mcp use <name>'.",
+		);
+	}
+	return configMcpId;
+}
+
 /**
  * Debounce a function to limit how often it can be called
  */

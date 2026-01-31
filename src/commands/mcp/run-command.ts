@@ -2,9 +2,9 @@ import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
+import { handleError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
+import { requireMcpId } from "../../lib/utils.js";
 import type { RunCommandResponse } from "../../types/index.js";
 
 export const runCommandCommand = new Command("run-command")
@@ -22,16 +22,7 @@ export const runCommandCommand = new Command("run-command")
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
-
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
-			}
+			const mcpId = await requireMcpId(options.mcpId);
 
 			const timeout = options.timeout
 				? Number.parseInt(options.timeout, 10)
@@ -40,7 +31,7 @@ export const runCommandCommand = new Command("run-command")
 			const spinner = ora(`Running: ${cmd} ${args.join(" ")}`.trim()).start();
 
 			const result = await api.post<RunCommandResponse>(
-				`/api/mcp/sandboxes/${mcpId}/commands`,
+				`/api/mcp/repositories/${mcpId}/sandbox/commands`,
 				{
 					command: cmd,
 					args: args.length > 0 ? args : undefined,

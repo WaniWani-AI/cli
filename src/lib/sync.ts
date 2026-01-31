@@ -46,7 +46,7 @@ export async function loadProjectMcpId(
 	try {
 		const content = await readFile(settingsPath, "utf-8");
 		const settings = JSON.parse(content);
-		return settings.mcpId ?? null;
+		return settings.mcp?.id ?? null;
 	} catch {
 		return null;
 	}
@@ -159,6 +159,41 @@ export async function pullFilesFromSandbox(
 	// Fetch all files from the sandbox in one request
 	const result = await api.get<PullFilesResponse>(
 		`/api/mcp/sandboxes/${mcpId}/files/pull`,
+	);
+
+	const writtenFiles: string[] = [];
+
+	for (const file of result.files) {
+		const localPath = join(targetDir, file.path);
+		const dir = dirname(localPath);
+
+		// Ensure directory exists
+		await mkdir(dir, { recursive: true });
+
+		// Write file content
+		if (file.encoding === "base64") {
+			await writeFile(localPath, Buffer.from(file.content, "base64"));
+		} else {
+			await writeFile(localPath, file.content, "utf8");
+		}
+
+		writtenFiles.push(file.path);
+	}
+
+	return { count: writtenFiles.length, files: writtenFiles };
+}
+
+/**
+ * Pull all files from GitHub to a local directory.
+ * Uses a single API call to fetch all files from the repository.
+ */
+export async function pullFilesFromGithub(
+	mcpId: string,
+	targetDir: string,
+): Promise<{ count: number; files: string[] }> {
+	// Fetch all files from GitHub in one request
+	const result = await api.get<PullFilesResponse>(
+		`/api/mcp/repositories/${mcpId}/github/files`,
 	);
 
 	const writtenFiles: string[] = [];

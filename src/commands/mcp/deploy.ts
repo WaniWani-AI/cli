@@ -1,60 +1,69 @@
+import { input } from "@inquirer/prompts";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
+import { CLIError, handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { DeployResponse } from "../../types/index.js";
+import { collectFiles, findProjectRoot } from "../../lib/sync.js";
+import { requireMcpId } from "../../lib/utils.js";
+import type { WriteFilesResponse } from "../../types/index.js";
 
 export const deployCommand = new Command("deploy")
-	.description("Deploy MCP server to GitHub + Vercel from sandbox")
-	.option("--repo <name>", "GitHub repository name")
-	.option("--org <name>", "GitHub organization")
-	.option("--private", "Create private repository")
+	.description("Push local files to GitHub and trigger deployment")
+	.option("-m, --message <msg>", "Commit message")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
+			const mcpId = await requireMcpId(options.mcpId);
 
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
+			// Find project root
+			const projectRoot = await findProjectRoot(process.cwd());
+			if (!projectRoot) {
+				throw new CLIError(
+					"Not in a WaniWani project. Run 'waniwani mcp init <name>' first.",
+					"NOT_IN_PROJECT",
+				);
 			}
 
-			const spinner = ora("Deploying to GitHub...").start();
+			// Get commit message
+			let message = options.message;
+			if (!message) {
+				message = await input({
+					message: "Commit message:",
+					validate: (value) =>
+						value.trim() ? true : "Commit message is required",
+				});
+			}
 
-			const result = await api.post<DeployResponse>(
-				`/api/mcp/sandboxes/${mcpId}/deploy`,
-				{
-					repoName: options.repo,
-					org: options.org,
-					private: options.private ?? false,
-				},
+			const spinner = ora("Collecting files...").start();
+
+			// Collect all files from the project
+			const files = await collectFiles(projectRoot);
+
+			if (files.length === 0) {
+				spinner.fail("No files to deploy");
+				return;
+			}
+
+			spinner.text = `Pushing ${files.length} files to GitHub...`;
+
+			const result = await api.post<WriteFilesResponse>(
+				`/api/mcp/repositories/${mcpId}/github/files`,
+				{ files, message },
 			);
 
-			spinner.succeed("Deployment complete!");
+			spinner.succeed(`Pushed ${result.written.length} files to GitHub`);
 
 			if (json) {
 				formatOutput(result, true);
 			} else {
 				console.log();
-				formatSuccess("MCP server deployed!", false);
+				formatSuccess("Files pushed to GitHub!", false);
 				console.log();
-				console.log(`  Repository: ${result.repository.url}`);
-				if (result.deployment.url) {
-					console.log(`  Deployment: ${result.deployment.url}`);
-				}
-				console.log();
-				if (result.deployment.note) {
-					console.log(`Note: ${result.deployment.note}`);
-				}
+				console.log("Deployment will start automatically via webhook.");
 			}
 		} catch (error) {
 			handleError(error, json);

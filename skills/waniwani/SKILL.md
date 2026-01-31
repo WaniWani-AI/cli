@@ -10,9 +10,9 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani init my-mcp          # Create sandbox, download template, install deps, start server
+waniwani mcp init my-mcp      # Create GitHub repo and clone locally
 cd my-mcp
-waniwani mcp logs -f          # Stream server logs
+waniwani mcp dev              # Start sandbox, sync files, start server, watch for changes
 ```
 
 ## Limitations
@@ -23,12 +23,10 @@ waniwani mcp logs -f          # Stream server logs
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani init <name>` (creates sandbox, downloads template, installs deps, starts server)
-3. **Monitor logs**: `waniwani mcp logs -f` (stream server output)
-4. **Develop locally**: Edit files with full IDE support, autocomplete, linting
-5. **Push changes**: `waniwani push` to sync local files to sandbox
-6. **Restart server**: `waniwani mcp stop` then `waniwani mcp start`
-7. **Deploy**: `waniwani mcp deploy` when ready for production
+2. **Initialize**: `waniwani mcp init <name>` (creates GitHub repo, clones locally)
+3. **Develop**: `waniwani mcp dev` (starts sandbox + server + file watcher all in one)
+4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
+5. **Deploy**: `waniwani mcp deploy` to push files to GitHub for production
 
 ## Commands
 
@@ -43,69 +41,66 @@ waniwani logout                 # Clear stored credentials
 ### Initialize Project
 
 ```bash
-waniwani init <name>            # Create sandbox + download template to ./<name>/
+waniwani mcp init <name>        # Create GitHub repo and clone to ./<name>/
+waniwani mcp init <name> --no-clone  # Create repo without cloning (outputs clone command)
 ```
 
 This command:
-1. Creates a cloud sandbox with the MCP template pre-loaded
-2. Downloads all template files from the sandbox to a local `./<name>/` directory
-3. Links the local project to the sandbox via `.waniwani/settings.json`
-4. Installs dependencies and starts the MCP server
+1. Creates a GitHub repository with the MCP template
+2. Clones the repository to a local `./<name>/` directory
+3. Links the local project to the MCP via `.waniwani/settings.json`
 
-No GitHub access required - the template is served directly from the sandbox.
-
-### Sync & Development
+### Development
 
 ```bash
-waniwani push                   # Sync local files to sandbox
-waniwani push --dry-run         # Show what would be synced without uploading
-waniwani dev                    # Watch mode - auto-sync on file change
-waniwani dev --no-initial-sync  # Skip initial sync, just watch for changes
+waniwani mcp dev                # Start sandbox + server + file watcher
+waniwani mcp dev --no-watch     # Start without file watching
+waniwani mcp dev --no-logs      # Don't stream logs to terminal
+waniwani mcp dev --mcp-id <id>  # Use specific MCP ID
 ```
 
-### MCP Sandbox Management
+The `dev` command handles everything:
+1. Creates or resumes the sandbox
+2. Syncs all local files to the sandbox
+3. Starts the MCP server
+4. Watches for file changes and auto-syncs them
+
+### MCP Management
 
 ```bash
-waniwani mcp list               # List all active MCPs
+waniwani mcp list               # List all MCPs
 waniwani mcp list --all         # Include stopped/expired MCPs
 waniwani mcp use <name>         # Select an MCP for subsequent commands
 waniwani mcp use <name> --global    # Save to global config
 waniwani mcp status             # Show current MCP status and server info
-waniwani mcp delete             # Delete sandbox from cloud
+waniwani mcp delete             # Delete MCP from cloud
 ```
 
-### MCP Server Lifecycle
-
-Start, stop, and monitor your MCP server running in the sandbox.
+### Server & Logs
 
 ```bash
-waniwani mcp start                  # Install deps + start MCP server
-waniwani mcp stop                   # Stop the running MCP server
-waniwani mcp logs                   # Get current logs from the running server
-waniwani mcp logs -f                # Stream logs continuously (follow mode)
-waniwani mcp logs --follow          # Same as -f
+waniwani mcp stop               # Stop the running MCP server
+waniwani mcp logs               # Get current logs from the running server
+waniwani mcp logs -f            # Stream logs continuously (follow mode)
+waniwani mcp logs --follow      # Same as -f
 ```
-
-The `start` command automatically:
-1. Installs dependencies if needed (`npm install`)
-2. Runs the dev server (`npm run dev`)
 
 **Typical workflow:**
 ```bash
-waniwani init my-server         # Initialize + install deps + start server
+waniwani mcp init my-server     # Create repo and clone
 cd my-server
-waniwani mcp logs -f            # Monitor output (Ctrl+C to exit)
-# ... edit files locally ...
-waniwani push                   # Sync changes to sandbox
-waniwani mcp stop && waniwani mcp start  # Restart server
+waniwani mcp dev                # Start sandbox + server + file watcher
+# ... edit files locally (auto-synced) ...
+# Ctrl+C to stop
+waniwani mcp deploy             # Push files to GitHub and deploy
 ```
 
 ### Testing with MCP Inspector
 
-After starting the server, `waniwani mcp start` displays an MCP Inspector command you can run to test your tools interactively:
+After starting the server, `waniwani mcp dev` displays an MCP Inspector command you can run to test your tools interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector --url <preview-url>/mcp
+npx @anthropic-ai/mcp-inspector@latest "<preview-url>/mcp"
 ```
 
 The inspector provides a web UI to:
@@ -113,14 +108,18 @@ The inspector provides a web UI to:
 - Call tools with custom inputs
 - View tool responses
 
-### Deployment
+### Deployment & Sync
 
 ```bash
-waniwani mcp deploy                         # Deploy with defaults
-waniwani mcp deploy --repo my-mcp           # Specify repo name
-waniwani mcp deploy --org my-org            # Specify GitHub org
-waniwani mcp deploy --private               # Create private repo
+waniwani mcp deploy -m "message"    # Push local files to GitHub with commit message
+waniwani mcp deploy                 # Prompts for commit message interactively
+waniwani mcp sync                   # Pull files from GitHub to local project
 ```
+
+The `deploy` command:
+1. Collects all local files (respects .gitignore)
+2. Pushes them to the WaniWani GitHub repository with the provided commit message
+3. Deployment starts automatically via webhook
 
 ### Organization Management
 
@@ -144,7 +143,7 @@ waniwani --verbose <command>        # Enable verbose logging
 |------|---------|
 | `~/.waniwani/settings.json` | Global settings: active MCP, API URL |
 | `~/.waniwani/auth.json` | OAuth tokens (access, refresh, expiry) |
-| `<project>/.waniwani/settings.json` | Per-project settings (sandbox ID, API URL) |
+| `<project>/.waniwani/settings.json` | Per-project settings (MCP ID, API URL) |
 
 ### Initialize Config
 
@@ -155,12 +154,12 @@ waniwani config init --force    # Overwrite existing config
 
 ## Local Project Structure
 
-After `waniwani init my-mcp`:
+After `waniwani mcp init my-mcp`:
 
 ```
 my-mcp/
 ├── .waniwani/
-│   └── settings.json         # Sandbox ID (auto-generated)
+│   └── settings.json         # MCP ID (auto-generated)
 ├── app/
 │   ├── mcp/route.ts          # Register tools & widgets here
 │   └── ({{MCP_NAME}})/       # Widget pages
@@ -174,7 +173,7 @@ my-mcp/
 
 ## MCP Template
 
-Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is automatically loaded into the sandbox and downloaded to your local machine during `waniwani init` - no separate GitHub access required.
+Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is cloned from a GitHub repository during `waniwani mcp init`.
 
 The template includes tools, widgets, and all framework utilities.
 
@@ -191,18 +190,20 @@ The template includes tools, widgets, and all framework utilities.
 The sandbox serves MCP protocol (SSE), not HTTP. The preview URL is for MCP clients to connect, not for browsers. This is expected behavior.
 
 ### Sandbox expired
-Sandboxes expire after ~30 minutes of inactivity. The sandbox will auto-resume when you run commands:
+Sandboxes expire after ~30 minutes of inactivity. Simply run `waniwani mcp dev` again to resume:
 ```bash
-waniwani push       # Will resume sandbox if expired
-waniwani mcp start  # Will resume sandbox if expired
+waniwani mcp dev    # Will create/resume sandbox automatically
 ```
 
-### Changes not reflected
-Make sure you've pushed your changes:
+### Changes not reflected in sandbox
+If you're using `waniwani mcp dev`, changes should auto-sync. If not, restart the dev command:
 ```bash
-waniwani push
+# Ctrl+C to stop current session
+waniwani mcp dev    # Restart with fresh sync
 ```
-Or use watch mode for automatic syncing:
+
+### Changes not deployed to production
+Make sure you've pushed your changes to GitHub:
 ```bash
-waniwani dev
+waniwani mcp deploy
 ```

@@ -1,47 +1,42 @@
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
+import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { ServerStopResponse } from "../../types/index.js";
+import { requireMcpId } from "../../lib/utils.js";
 
 export const stopCommand = new Command("stop")
-	.description("Stop the MCP server process")
+	.description("Stop the development environment (sandbox + server)")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
+			const mcpId = await requireMcpId(options.mcpId);
 
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
+			const spinner = ora("Stopping development environment...").start();
+
+			// Stop server first
+			try {
+				await api.post(`/api/mcp/repositories/${mcpId}/sandbox/server`, {
+					action: "stop",
+				});
+			} catch {
+				// Server might not be running, continue
 			}
 
-			const spinner = ora("Stopping MCP server...").start();
+			// Delete sandbox
+			await api.delete(`/api/mcp/repositories/${mcpId}/sandbox`);
 
-			const result = await api.post<ServerStopResponse>(
-				`/api/mcp/sandboxes/${mcpId}/server`,
-				{ action: "stop" },
-			);
-
-			if (result.stopped) {
-				spinner.succeed("MCP server stopped");
-			} else {
-				spinner.warn("Server was not running");
-			}
+			spinner.succeed("Development environment stopped");
 
 			if (json) {
-				formatOutput(result, true);
+				formatOutput({ stopped: true }, true);
 			} else {
-				formatSuccess("MCP server stopped.", false);
+				formatSuccess("Sandbox stopped.", false);
+				console.log();
+				console.log("Start again: waniwani mcp dev");
 			}
 		} catch (error) {
 			handleError(error, json);

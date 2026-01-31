@@ -2,9 +2,9 @@ import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../../lib/api.js";
-import { config } from "../../../lib/config.js";
-import { handleError, McpError } from "../../../lib/errors.js";
+import { handleError } from "../../../lib/errors.js";
 import { formatOutput, formatTable } from "../../../lib/output.js";
+import { requireMcpId } from "../../../lib/utils.js";
 import type { ListFilesResponse } from "../../../types/index.js";
 
 export const listCommand = new Command("list")
@@ -16,21 +16,12 @@ export const listCommand = new Command("list")
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
-
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
-			}
+			const mcpId = await requireMcpId(options.mcpId);
 
 			const spinner = ora(`Listing ${path}...`).start();
 
 			const result = await api.get<ListFilesResponse>(
-				`/api/mcp/sandboxes/${mcpId}/files/list?path=${encodeURIComponent(path)}`,
+				`/api/mcp/repositories/${mcpId}/sandbox/files/list?path=${encodeURIComponent(path)}`,
 			);
 
 			spinner.stop();

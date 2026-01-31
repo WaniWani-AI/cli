@@ -3,9 +3,9 @@ import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
 import { auth } from "../../lib/auth.js";
-import { config } from "../../lib/config.js";
 import { AuthError, handleError, McpError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
+import { requireMcpId } from "../../lib/utils.js";
 import type { LogEvent, ServerStatusResponse } from "../../types/index.js";
 
 export const logsCommand = new Command("logs")
@@ -31,16 +31,7 @@ export const logsCommand = new Command("logs")
 		process.on("SIGTERM", cleanup);
 
 		try {
-			let mcpId = options.mcpId;
-
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
-			}
+			const mcpId = await requireMcpId(options.mcpId);
 
 			const token = await auth.getAccessToken();
 			if (!token) {
@@ -55,14 +46,14 @@ export const logsCommand = new Command("logs")
 			if (!cmdId) {
 				const spinner = ora("Getting server status...").start();
 				const status = await api.post<ServerStatusResponse>(
-					`/api/mcp/sandboxes/${mcpId}/server`,
+					`/api/mcp/repositories/${mcpId}/sandbox/server`,
 					{ action: "status" },
 				);
 				spinner.stop();
 
 				if (!status.running || !status.cmdId) {
 					throw new McpError(
-						"No server is running. Run 'waniwani mcp start' first.",
+						"No server is running. Run 'waniwani mcp dev' first.",
 					);
 				}
 				cmdId = status.cmdId;
@@ -70,7 +61,7 @@ export const logsCommand = new Command("logs")
 
 			const baseUrl = await api.getBaseUrl();
 			const streamParam = options.follow ? "?stream=true" : "";
-			const url = `${baseUrl}/api/mcp/sandboxes/${mcpId}/commands/${cmdId}${streamParam}`;
+			const url = `${baseUrl}/api/mcp/repositories/${mcpId}/sandbox/commands/${cmdId}${streamParam}`;
 
 			if (!json) {
 				console.log(chalk.gray(`Streaming logs for command ${cmdId}...`));

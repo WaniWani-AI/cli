@@ -2,9 +2,9 @@ import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../../lib/api.js";
-import { config } from "../../../lib/config.js";
 import { handleError, McpError } from "../../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../../lib/output.js";
+import { requireMcpId } from "../../../lib/utils.js";
 import type { ReadFileResponse } from "../../../types/index.js";
 
 export const readCommand = new Command("read")
@@ -18,22 +18,13 @@ export const readCommand = new Command("read")
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
-
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
-					);
-				}
-			}
+			const mcpId = await requireMcpId(options.mcpId);
 
 			const encoding = options.base64 ? "base64" : "utf8";
 			const spinner = ora(`Reading ${path}...`).start();
 
 			const result = await api.get<ReadFileResponse>(
-				`/api/mcp/sandboxes/${mcpId}/files?path=${encodeURIComponent(path)}&encoding=${encoding}`,
+				`/api/mcp/repositories/${mcpId}/sandbox/files?path=${encodeURIComponent(path)}&encoding=${encoding}`,
 			);
 
 			spinner.stop();

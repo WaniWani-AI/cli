@@ -25,33 +25,84 @@ export type OAuthClientRegistrationResponse = z.infer<
 >;
 
 // ============================================
-// MCP Types
+// MCP Sandbox Types (ephemeral dev environment)
 // ============================================
 
-export const McpSchema = z.object({
+export const McpSandboxSchema = z.object({
+	id: z.string(),
+	mcpRepositoryId: z.string(),
+	sandboxId: z.string(),
+	previewUrl: z.string().url(),
+	serverCmdId: z.string().nullable(),
+	serverRunning: z.boolean(),
+	createdAt: z.string(),
+	expiresAt: z.string().nullable(),
+});
+
+export type McpSandbox = z.infer<typeof McpSandboxSchema>;
+
+// ============================================
+// MCP Repository Types (persistent)
+// ============================================
+
+export const McpRepositorySchema = z.object({
 	id: z.string(),
 	orgId: z.string(),
 	createdBy: z.string(),
 	name: z.string(),
-	sandboxId: z.string(),
-	previewUrl: z.string().url(),
-	status: z.enum(["active", "stopped", "expired"]),
+
+	// GitHub integration
+	githubRepo: z.string(), // e.g., "org/repo-name"
+	githubCloneUrl: z.string().url(), // e.g., "https://github.com/org/repo.git"
+
+	// Vercel integration (null until first deployment)
+	vercelProjectId: z.string().nullable(),
+	productionUrl: z.string().url().nullable(),
+
+	// Timestamps
+	deployedAt: z.string().nullable(),
 	createdAt: z.string(),
-	expiresAt: z.string().nullable(),
-	stoppedAt: z.string().nullable(),
+
+	// Active sandbox info (if any)
+	activeSandbox: McpSandboxSchema.nullable(),
 });
 
-export type Mcp = z.infer<typeof McpSchema>;
+export type McpRepository = z.infer<typeof McpRepositorySchema>;
 
-// MCP list response (array of MCPs)
-export const McpListResponseSchema = z.array(McpSchema);
+// Repository list response
+export const McpRepositoryListResponseSchema = z.array(McpRepositorySchema);
+export type McpRepositoryListResponse = z.infer<
+	typeof McpRepositoryListResponseSchema
+>;
 
-export type McpListResponse = z.infer<typeof McpListResponseSchema>;
+// Create repository response
+export const CreateMcpRepositoryResponseSchema = z.object({
+	repository: McpRepositorySchema,
+	cloneUrl: z.string().url(),
+	cloneCommand: z.string(),
+});
+export type CreateMcpRepositoryResponse = z.infer<
+	typeof CreateMcpRepositoryResponseSchema
+>;
 
-// Create MCP response (returns the created MCP)
-export const CreateMcpResponseSchema = McpSchema;
+// Sandbox start response
+export const SandboxStartResponseSchema = z.object({
+	sandbox: McpSandboxSchema,
+	previewUrl: z.string().url(),
+});
+export type SandboxStartResponse = z.infer<typeof SandboxStartResponseSchema>;
 
-export type CreateMcpResponse = z.infer<typeof CreateMcpResponseSchema>;
+// Manual deploy response
+export const ManualDeployResponseSchema = z.object({
+	deployment: z.object({
+		id: z.string(),
+		url: z.string().url().nullable(),
+		status: z.enum(["queued", "building", "ready", "error"]),
+		commitSha: z.string().nullable(),
+	}),
+	productionUrl: z.string().url().nullable(),
+});
+export type ManualDeployResponse = z.infer<typeof ManualDeployResponseSchema>;
 
 // ============================================
 // MCP Tool Types

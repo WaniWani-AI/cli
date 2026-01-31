@@ -4,7 +4,10 @@ import { api } from "../../lib/api.js";
 import { config, globalConfig } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { Mcp, McpListResponse } from "../../types/index.js";
+import type {
+	McpRepository,
+	McpRepositoryListResponse,
+} from "../../types/index.js";
 
 export const useCommand = new Command("use")
 	.description("Select an MCP to use for subsequent commands")
@@ -18,22 +21,18 @@ export const useCommand = new Command("use")
 			const spinner = ora("Fetching MCPs...").start();
 
 			// Fetch all MCPs
-			const mcps = await api.get<McpListResponse>("/api/mcp/sandboxes");
+			const mcps = await api.get<McpRepositoryListResponse>(
+				"/api/mcp/repositories",
+			);
 
 			spinner.stop();
 
 			// Find MCP by name
-			const mcp = mcps.find((m: Mcp) => m.name === name);
+			const mcp = mcps.find((m: McpRepository) => m.name === name);
 
 			if (!mcp) {
 				throw new McpError(
 					`MCP "${name}" not found. Run 'waniwani mcp list' to see available MCPs.`,
-				);
-			}
-
-			if (mcp.status !== "active") {
-				throw new McpError(
-					`MCP "${name}" is ${mcp.status}. Only active MCPs can be used.`,
 				);
 			}
 
@@ -45,13 +44,11 @@ export const useCommand = new Command("use")
 			} else {
 				formatSuccess(`Now using MCP "${name}" (${cfg.scope})`, false);
 				console.log();
-				console.log(`  MCP ID:      ${mcp.id}`);
-				console.log(`  Preview URL: ${mcp.previewUrl}`);
+				console.log(`  MCP ID: ${mcp.id}`);
 				console.log();
 				console.log("Next steps:");
-				console.log('  waniwani task "Add a tool"');
-				console.log("  waniwani mcp test");
-				console.log("  waniwani mcp status");
+				console.log("  waniwani mcp dev      # Start live preview");
+				console.log("  waniwani mcp status   # Check status");
 			}
 		} catch (error) {
 			handleError(error, json);

@@ -2,75 +2,99 @@ import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config } from "../../lib/config.js";
-import { handleError, McpError } from "../../lib/errors.js";
+import { handleError } from "../../lib/errors.js";
 import { formatList, formatOutput } from "../../lib/output.js";
-import type { Mcp, ServerStatusResponse } from "../../types/index.js";
+import { requireMcpId } from "../../lib/utils.js";
+import type { McpRepository, ServerStatusResponse } from "../../types/index.js";
 
 export const statusCommand = new Command("status")
-	.description("Show current MCP sandbox status")
+	.description("Show current MCP status")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
 		try {
-			let mcpId = options.mcpId;
-
-			if (!mcpId) {
-				mcpId = await config.getMcpId();
-				if (!mcpId) {
-					throw new McpError(
-						"No active MCP. Run 'waniwani mcp create <name>' to create one or 'waniwani mcp use <name>' to select one.",
-					);
-				}
-			}
+			const mcpId = await requireMcpId(options.mcpId);
 
 			const spinner = ora("Fetching MCP status...").start();
 
-			// Fetch sandbox status and server status in parallel
-			const [result, serverStatus] = await Promise.all([
-				api.get<Mcp>(`/api/mcp/sandboxes/${mcpId}`),
-				api
-					.post<ServerStatusResponse>(`/api/mcp/sandboxes/${mcpId}/server`, {
-						action: "status",
-					})
-					.catch(() => ({
-						running: false,
-						cmdId: undefined,
-						previewUrl: undefined,
-					})),
-			]);
+			const result = await api.get<McpRepository>(
+				`/api/mcp/repositories/${mcpId}`,
+			);
+
+			// Fetch server status if sandbox is active
+			let serverStatus: ServerStatusResponse | null = null;
+			if (result.activeSandbox) {
+				serverStatus = await api
+					.post<ServerStatusResponse>(
+						`/api/mcp/repositories/${mcpId}/sandbox/server`,
+						{ action: "status" },
+					)
+					.catch(() => null);
+			}
 
 			spinner.stop();
 
 			if (json) {
 				formatOutput({ ...result, server: serverStatus }, true);
 			} else {
-				const statusColor =
-					result.status === "active" ? chalk.green : chalk.red;
-				const serverRunning = serverStatus.running;
-				const serverStatusColor = serverRunning ? chalk.green : chalk.yellow;
+				const deployStatus = result.deployedAt
+					? chalk.green("Deployed")
+					: chalk.yellow("Pending");
 
-				formatList(
-					[
-						{ label: "MCP ID", value: result.id },
-						{ label: "Name", value: result.name },
-						{ label: "Status", value: statusColor(result.status) },
-						{ label: "Sandbox ID", value: result.sandboxId },
-						{ label: "Preview URL", value: result.previewUrl },
+				const items = [
+					{ label: "Name", value: result.name },
+					{ label: "MCP ID", value: result.id },
+					{ label: "Status", value: deployStatus },
+					{
+						label: "Last Deploy",
+						value: result.deployedAt
+							? new Date(result.deployedAt).toLocaleString()
+							: chalk.gray("Never"),
+					},
+					{
+						label: "Created",
+						value: new Date(result.createdAt).toLocaleString(),
+					},
+				];
+
+				// Add sandbox info if active
+				if (result.activeSandbox) {
+					const sandbox = result.activeSandbox;
+					const serverRunning = serverStatus?.running ?? sandbox.serverRunning;
+					const serverStatusColor = serverRunning ? chalk.green : chalk.yellow;
+
+					items.push(
+						{ label: "", value: "" }, // Separator
+						{ label: "Sandbox", value: chalk.green("Active") },
+						{ label: "Preview URL", value: sandbox.previewUrl },
 						{
 							label: "Server",
 							value: serverStatusColor(serverRunning ? "Running" : "Stopped"),
 						},
-						...(serverStatus.cmdId
-							? [{ label: "Server Cmd ID", value: serverStatus.cmdId }]
-							: []),
-						{ label: "Created", value: result.createdAt },
-						{ label: "Expires", value: result.expiresAt ?? "N/A" },
-					],
-					false,
-				);
+						{
+							label: "Expires",
+							value: sandbox.expiresAt
+								? new Date(sandbox.expiresAt).toLocaleString()
+								: chalk.gray("N/A"),
+						},
+					);
+				} else {
+					items.push(
+						{ label: "", value: "" }, // Separator
+						{ label: "Sandbox", value: chalk.gray("None") },
+					);
+				}
+
+				formatList(items, false);
+
+				console.log();
+				if (!result.activeSandbox) {
+					console.log("Start development: waniwani mcp dev");
+				} else if (!serverStatus?.running) {
+					console.log("View logs: waniwani mcp logs");
+				}
 			}
 		} catch (error) {
 			handleError(error, json);
