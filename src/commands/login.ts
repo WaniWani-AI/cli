@@ -161,7 +161,10 @@ async function waitForCallback(
       text-align: center;
     }
     .logo {
-      height: 40px;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1e293b;
+      letter-spacing: -0.025em;
     }
     .icon-circle {
       width: 80px;
@@ -194,9 +197,7 @@ async function waitForCallback(
   <div class="blob blob-2"></div>
   <div class="blob blob-3"></div>
   <div class="container">
-    <svg class="logo" viewBox="0 0 248 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="32" font-family="system-ui" font-size="28" font-weight="bold" fill="#1e293b">WaniWani</text>
-    </svg>
+    <span class="logo">WaniWani</span>
     <div class="icon-circle">
       ${
 				isSuccess
@@ -446,6 +447,9 @@ export const loginCommand = new Command("login")
 				clientId,
 				apiUrl, // RFC 8707 resource parameter
 			);
+
+			// Ensure .waniwani/ exists in cwd before storing tokens
+			await config.ensureConfigDir();
 
 			// Store tokens and client ID for refresh
 			await auth.setTokens(

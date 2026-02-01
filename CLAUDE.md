@@ -26,9 +26,8 @@ src/
 │       └── switch.ts   # Switch organization
 ├── lib/                # Shared utilities
 │   ├── api.ts          # API client with auth
-│   ├── auth.ts         # Token management
-│   ├── config.ts       # Global config (~/.waniwani/config.json)
-│   ├── project-config.ts # Project config (.waniwani.json)
+│   ├── auth.ts         # Token management (delegates to config)
+│   ├── config.ts       # Local config (.waniwani/settings.json)
 │   ├── errors.ts       # Error handling
 │   └── output.ts       # Output formatting
 └── types/              # TypeScript types
@@ -37,21 +36,32 @@ src/
 
 ## Configuration
 
+All config is stored locally in `.waniwani/settings.json` (per-project, no global config).
+
+### Config Schema
+
+```json
+{
+  "sessionId": "...",      // Current dev session ID
+  "mcpId": "...",          // Selected MCP ID
+  "apiUrl": "...",         // API base URL
+  "accessToken": "...",    // OAuth access token
+  "refreshToken": "...",   // OAuth refresh token
+  "expiresAt": "...",      // Token expiry (ISO 8601)
+  "clientId": "..."        // OAuth client ID
+}
+```
+
 ### API URL Priority
 
-The API URL is resolved with this priority:
-
 1. **Environment variable**: `WANIWANI_API_URL`
-2. **Config file**: `~/.waniwani/config.json` → `apiUrl`
+2. **Config file**: `.waniwani/settings.json` → `apiUrl`
 3. **Default**: `https://app.waniwani.ai`
 
-Use `config.getApiUrl()` to get the resolved URL.
+### Auth Flow
 
-### Config Files
-
-- **Global config**: `~/.waniwani/config.json` - User preferences, active MCP, API URL
-- **Auth store**: `~/.waniwani/auth.json` - OAuth tokens (access, refresh, expiry)
-- **Project config**: `.waniwani.json` - Per-project settings (MCP ID, defaults)
+- `waniwani login` creates `.waniwani/` in current directory if needed
+- `waniwani mcp init` copies parent `.waniwani/` to new project (including auth)
 
 ## Key Patterns
 

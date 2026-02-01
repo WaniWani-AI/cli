@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
-import { config, globalConfig } from "../../lib/config.js";
+import { config } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import type {
@@ -12,8 +12,7 @@ import type {
 export const useCommand = new Command("use")
 	.description("Select an MCP to use for subsequent commands")
 	.argument("<name>", "Name of the MCP to use")
-	.option("--global", "Save to global config instead of project config")
-	.action(async (name: string, options, command) => {
+	.action(async (name: string, _options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
@@ -36,15 +35,14 @@ export const useCommand = new Command("use")
 				);
 			}
 
-			const cfg = options.global ? globalConfig : config;
-			await cfg.setMcpId(mcp.id);
+			await config.setMcpId(mcp.id);
 			// Clear session since we're switching MCPs
-			await cfg.setSessionId(null);
+			await config.setSessionId(null);
 
 			if (json) {
-				formatOutput({ selected: mcp, scope: cfg.scope }, true);
+				formatOutput({ selected: mcp }, true);
 			} else {
-				formatSuccess(`Now using MCP "${name}" (${cfg.scope})`, false);
+				formatSuccess(`Now using MCP "${name}"`, false);
 				console.log();
 				console.log(`  MCP ID: ${mcp.id}`);
 				console.log();

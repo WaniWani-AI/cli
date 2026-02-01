@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -9,14 +8,18 @@ export const CONFIG_FILE_NAME = "settings.json";
 
 const LOCAL_DIR = join(process.cwd(), LOCAL_CONFIG_DIR);
 const LOCAL_FILE = join(LOCAL_DIR, CONFIG_FILE_NAME);
-const GLOBAL_DIR = join(homedir(), LOCAL_CONFIG_DIR);
-const GLOBAL_FILE = join(GLOBAL_DIR, CONFIG_FILE_NAME);
 const DEFAULT_API_URL = "https://app.waniwani.ai";
 
 const ConfigSchema = z.object({
+	// Settings
 	sessionId: z.string().nullable().default(null),
 	mcpId: z.string().nullable().default(null),
 	apiUrl: z.string().default(DEFAULT_API_URL),
+	// Auth (merged from auth.json)
+	accessToken: z.string().nullable().default(null),
+	refreshToken: z.string().nullable().default(null),
+	expiresAt: z.string().nullable().default(null),
+	clientId: z.string().nullable().default(null),
 });
 
 type ConfigData = z.infer<typeof ConfigSchema>;
@@ -25,13 +28,10 @@ class Config {
 	private dir: string;
 	private file: string;
 	private cache: ConfigData | null = null;
-	readonly scope: "local" | "global";
 
-	constructor(forceGlobal = false) {
-		const useLocal = !forceGlobal && existsSync(LOCAL_DIR);
-		this.dir = useLocal ? LOCAL_DIR : GLOBAL_DIR;
-		this.file = useLocal ? LOCAL_FILE : GLOBAL_FILE;
-		this.scope = useLocal ? "local" : "global";
+	constructor() {
+		this.dir = LOCAL_DIR;
+		this.file = LOCAL_FILE;
 	}
 
 	private async load(): Promise<ConfigData> {
@@ -52,6 +52,23 @@ class Config {
 		await mkdir(this.dir, { recursive: true });
 		await writeFile(this.file, JSON.stringify(data, null, "\t"));
 	}
+
+	/**
+	 * Ensure the .waniwani directory exists in cwd.
+	 * Used by login to create config before saving tokens.
+	 */
+	async ensureConfigDir(): Promise<void> {
+		await mkdir(this.dir, { recursive: true });
+	}
+
+	/**
+	 * Check if a .waniwani config directory exists in cwd.
+	 */
+	hasConfig(): boolean {
+		return existsSync(this.dir);
+	}
+
+	// --- Settings methods ---
 
 	async getMcpId() {
 		return (await this.load()).mcpId;
@@ -81,10 +98,56 @@ class Config {
 	async clear() {
 		await this.save(ConfigSchema.parse({}));
 	}
+
+	// --- Auth methods ---
+
+	async getAccessToken(): Promise<string | null> {
+		return (await this.load()).accessToken;
+	}
+
+	async getRefreshToken(): Promise<string | null> {
+		return (await this.load()).refreshToken;
+	}
+
+	async getClientId(): Promise<string | null> {
+		return (await this.load()).clientId;
+	}
+
+	async setTokens(
+		accessToken: string,
+		refreshToken: string,
+		expiresIn: number,
+		clientId?: string,
+	): Promise<void> {
+		const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+		const data = await this.load();
+		data.accessToken = accessToken;
+		data.refreshToken = refreshToken;
+		data.expiresAt = expiresAt;
+		if (clientId) {
+			data.clientId = clientId;
+		}
+		await this.save(data);
+	}
+
+	async clearAuth(): Promise<void> {
+		const data = await this.load();
+		data.accessToken = null;
+		data.refreshToken = null;
+		data.expiresAt = null;
+		data.clientId = null;
+		await this.save(data);
+	}
+
+	async isTokenExpired(): Promise<boolean> {
+		const data = await this.load();
+		if (!data.expiresAt) return true;
+		// Consider expired 5 minutes before actual expiry
+		return new Date(data.expiresAt).getTime() - 5 * 60 * 1000 < Date.now();
+	}
 }
 
 export const config = new Config();
-export const globalConfig = new Config(true);
 
 /**
  * Initialize a .waniwani/settings.json at the given directory.

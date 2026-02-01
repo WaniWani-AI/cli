@@ -15,7 +15,8 @@ import { formatOutput, formatSuccess } from "../../lib/output.js";
 import type { CreateMcpRepositoryResponse } from "../../types/index.js";
 
 /**
- * Load parent .waniwani/settings.json if it exists
+ * Load parent .waniwani/settings.json if it exists.
+ * Copies all settings including auth tokens, but excludes mcpId (new project gets its own).
  */
 async function loadParentConfig(
 	cwd: string,
@@ -28,8 +29,9 @@ async function loadParentConfig(
 	try {
 		const content = await readFile(parentConfigPath, "utf-8");
 		const config = JSON.parse(content);
-		// Remove mcp from parent - the new project gets its own
-		const { mcp: _, ...rest } = config;
+		// Remove mcpId from parent - the new project gets its own
+		// Keep auth tokens so user doesn't need to re-login
+		const { mcpId: _, sessionId: __, ...rest } = config;
 		return rest;
 	} catch {
 		return null;
