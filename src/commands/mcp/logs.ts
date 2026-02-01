@@ -31,8 +31,8 @@ export const logsCommand = new Command("logs")
 		process.on("SIGTERM", cleanup);
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			const token = await auth.getAccessToken();
 			if (!token) {

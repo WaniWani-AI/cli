@@ -19,8 +19,8 @@ export const writeCommand = new Command("write")
 		const json = globalOptions.json ?? false;
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			// Get content from --content or --file
 			let content: string;

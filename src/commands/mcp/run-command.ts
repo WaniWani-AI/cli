@@ -22,8 +22,8 @@ export const runCommandCommand = new Command("run-command")
 		const json = globalOptions.json ?? false;
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			const timeout = options.timeout
 				? Number.parseInt(options.timeout, 10)

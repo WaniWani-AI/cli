@@ -18,8 +18,8 @@ export const readCommand = new Command("read")
 		const json = globalOptions.json ?? false;
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			const encoding = options.base64 ? "base64" : "utf8";
 			const spinner = ora(`Reading ${path}...`).start();

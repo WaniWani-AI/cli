@@ -1,5 +1,3 @@
-import type { McpRepository } from "../types/index.js";
-import { api } from "./api.js";
 import { config } from "./config.js";
 import { McpError } from "./errors.js";
 
@@ -20,56 +18,19 @@ export async function requireMcpId(mcpId?: string): Promise<string> {
 }
 
 /**
- * Get the active session ID for an MCP repository.
- * Checks config first, validates with API, falls back to repository.
- * Throws McpError if no active session exists.
+ * Get the active session ID from config.
+ * Throws McpError if no session ID is stored.
  */
-export async function requireSessionId(mcpId: string): Promise<string> {
-	// Check stored sessionId
-	const storedSessionId = await config.getSessionId();
+export async function requireSessionId(): Promise<string> {
+	const sessionId = await config.getSessionId();
 
-	if (storedSessionId) {
-		// Validate it's still valid
-		try {
-			await api.post(`/api/mcp/sessions/${storedSessionId}/server`, {
-				action: "status",
-			});
-			return storedSessionId;
-		} catch {
-			// Session invalid, clear and fallback
-			await config.setSessionId(null);
-		}
-	}
-
-	// Fetch from repository
-	const repository = await api.get<McpRepository>(
-		`/api/mcp/repositories/${mcpId}`,
-	);
-
-	if (!repository.activeSandbox) {
+	if (!sessionId) {
 		throw new McpError(
 			"No active session. Run 'waniwani mcp dev' to start development.",
 		);
 	}
 
-	// Store for future use
-	await config.setSessionId(repository.activeSandbox.id);
-	return repository.activeSandbox.id;
-}
-
-/**
- * Debounce a function to limit how often it can be called
- */
-// biome-ignore lint/suspicious/noExplicitAny: Necessary for generic debounce
-export function debounce<T extends (...args: any[]) => any>(
-	fn: T,
-	delay: number,
-): (...args: Parameters<T>) => void {
-	let timeoutId: ReturnType<typeof setTimeout>;
-	return (...args: Parameters<T>) => {
-		clearTimeout(timeoutId);
-		timeoutId = setTimeout(() => fn(...args), delay);
-	};
+	return sessionId;
 }
 
 /**

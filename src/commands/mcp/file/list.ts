@@ -16,8 +16,8 @@ export const listCommand = new Command("list")
 		const json = globalOptions.json ?? false;
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			const spinner = ora(`Listing ${path}...`).start();
 

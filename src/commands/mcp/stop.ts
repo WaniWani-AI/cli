@@ -14,8 +14,8 @@ export const stopCommand = new Command("stop")
 		const json = globalOptions.json ?? false;
 
 		try {
-			const mcpId = await requireMcpId(options.mcpId);
-			const sessionId = await requireSessionId(mcpId);
+			await requireMcpId(options.mcpId);
+			const sessionId = await requireSessionId();
 
 			const spinner = ora("Stopping development environment...").start();
 
