@@ -14,7 +14,6 @@ import {
 import type {
 	McpSandbox,
 	SandboxStartResponse,
-	ServerStartResponse,
 	WriteFilesResponse,
 } from "../../types/index.js";
 
@@ -50,15 +49,17 @@ export const previewCommand = new Command("preview")
 
 			const spinner = ora("Starting development environment...").start();
 
-			// Step 1: Create or get session
+			// Step 1: Create or get session (this also starts the sandbox)
 			spinner.text = "Starting session...";
 			let sessionId: string;
+			let previewUrl: string;
 			try {
 				const sessionResponse = await api.post<SandboxStartResponse>(
 					`/api/mcp/repositories/${mcpId}/session`,
 					{},
 				);
 				sessionId = sessionResponse.sandbox.id;
+				previewUrl = sessionResponse.previewUrl;
 			} catch {
 				// Session might already exist, try to get it
 				const existing = await api.get<McpSandbox | null>(
@@ -68,6 +69,7 @@ export const previewCommand = new Command("preview")
 					throw new CLIError("Failed to start session", "SESSION_ERROR");
 				}
 				sessionId = existing.id;
+				previewUrl = existing.previewUrl;
 			}
 
 			// Store session ID in config
@@ -83,23 +85,16 @@ export const previewCommand = new Command("preview")
 				);
 			}
 
-			// Step 3: Start MCP server
-			spinner.text = "Starting MCP server...";
-			const serverResult = await api.post<ServerStartResponse>(
-				`/api/mcp/sessions/${sessionId}/server`,
-				{ action: "start" },
-			);
-
 			spinner.succeed("Development environment ready");
 
 			console.log();
 			formatSuccess("Live preview started!", false);
 			console.log();
-			console.log(`  Preview URL: ${serverResult.previewUrl}`);
+			console.log(`  Preview URL: ${previewUrl}`);
 			console.log();
 			console.log(`  MCP Inspector:`);
 			console.log(
-				`    npx @anthropic-ai/mcp-inspector@latest "${serverResult.previewUrl}/mcp"`,
+				`    npx @anthropic-ai/mcp-inspector@latest "${previewUrl}/mcp"`,
 			);
 			console.log();
 
