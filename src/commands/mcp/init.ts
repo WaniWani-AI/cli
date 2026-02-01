@@ -1,8 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
-import { execa } from "execa";
 import ora from "ora";
 import { api } from "../../lib/api.js";
 import {
@@ -12,7 +11,7 @@ import {
 } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { CreateMcpRepositoryResponse } from "../../types/index.js";
+import type { McpRepository } from "../../types/index.js";
 
 /**
  * Load parent .waniwani/settings.json if it exists.
@@ -41,8 +40,7 @@ async function loadParentConfig(
 export const initCommand = new Command("init")
 	.description("Create a new MCP project")
 	.argument("<name>", "Name for the MCP project")
-	.option("--no-clone", "Skip automatic git clone (just output the command)")
-	.action(async (name: string, options, command) => {
+	.action(async (name: string, _options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
@@ -69,37 +67,28 @@ export const initCommand = new Command("init")
 			// Create repository on backend (GitHub repo created immediately)
 			const spinner = ora("Creating MCP...").start();
 
-			const result = await api.post<CreateMcpRepositoryResponse>(
-				"/api/mcp/repositories",
-				{ name },
-			);
+			const result = await api.post<McpRepository>("/api/mcp/repositories", {
+				name,
+			});
 
-			if (options.clone !== false) {
-				spinner.text = "Cloning repository...";
+			// Create local project directory
+			mkdirSync(projectDir, { recursive: true });
 
-				// Clone using git
-				await execa("git", ["clone", result.cloneUrl, name], { cwd });
+			// Create .waniwani/settings.json with mcpId
+			const parentConfig = await loadParentConfig(cwd);
+			await initConfigAt(projectDir, {
+				...parentConfig,
+				mcpId: result.id,
+			});
 
-				spinner.text = "Setting up project config...";
-
-				// Create .waniwani/settings.json with mcpId
-				const parentConfig = await loadParentConfig(cwd);
-				await initConfigAt(projectDir, {
-					...parentConfig,
-					mcpId: result.repository.id,
-				});
-
-				spinner.succeed("MCP project created");
-			} else {
-				spinner.succeed("MCP created");
-			}
+			spinner.succeed("MCP project created");
 
 			if (json) {
 				formatOutput(
 					{
 						success: true,
-						projectDir: options.clone !== false ? projectDir : null,
-						mcpId: result.repository.id,
+						projectDir,
+						mcpId: result.id,
 					},
 					true,
 				);
@@ -107,25 +96,10 @@ export const initCommand = new Command("init")
 				console.log();
 				formatSuccess(`MCP "${name}" created!`, false);
 				console.log();
-
-				if (options.clone !== false) {
-					console.log("Next steps:");
-					console.log(`  cd ${name}`);
-					console.log(
-						"  waniwani mcp dev      # Start live preview with file watching",
-					);
-					console.log("  waniwani mcp push     # Deploy to production");
-				} else {
-					console.log("Clone your repository:");
-					console.log(`  ${result.cloneCommand}`);
-					console.log(`  cd ${name}`);
-					console.log();
-					console.log("Then start developing:");
-					console.log(
-						"  waniwani mcp dev      # Start live preview with file watching",
-					);
-					console.log("  waniwani mcp push     # Deploy to production");
-				}
+				console.log("Next steps:");
+				console.log(`  cd ${name}`);
+				console.log("  waniwani mcp sync     # Pull template files");
+				console.log("  waniwani mcp dev      # Start developing");
 			}
 		} catch (error) {
 			handleError(error, json);

@@ -75,16 +75,6 @@ export type McpRepositoryListResponse = z.infer<
 	typeof McpRepositoryListResponseSchema
 >;
 
-// Create repository response
-export const CreateMcpRepositoryResponseSchema = z.object({
-	repository: McpRepositorySchema,
-	cloneUrl: z.string().url(),
-	cloneCommand: z.string(),
-});
-export type CreateMcpRepositoryResponse = z.infer<
-	typeof CreateMcpRepositoryResponseSchema
->;
-
 // Sandbox start response
 export const SandboxStartResponseSchema = z.object({
 	sandbox: McpSandboxSchema,

@@ -10,8 +10,9 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani mcp init my-mcp      # Create GitHub repo and clone locally
+waniwani mcp init my-mcp      # Create GitHub repo and local project
 cd my-mcp
+waniwani mcp sync             # Pull template files
 waniwani mcp dev              # Start sandbox, sync files, start server, watch for changes
 ```
 
@@ -23,10 +24,11 @@ waniwani mcp dev              # Start sandbox, sync files, start server, watch f
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani mcp init <name>` (creates GitHub repo, clones locally)
-3. **Develop**: `waniwani mcp dev` (starts sandbox + server + file watcher all in one)
-4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
-5. **Deploy**: `waniwani mcp deploy` to push files to GitHub for production
+2. **Initialize**: `waniwani mcp init <name>` (creates GitHub repo and local project directory)
+3. **Sync**: `waniwani mcp sync` (pulls template files from GitHub)
+4. **Develop**: `waniwani mcp dev` (starts sandbox + server + file watcher all in one)
+5. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
+6. **Deploy**: `waniwani mcp deploy` to push files to GitHub for production
 
 ## Commands
 
@@ -41,14 +43,15 @@ waniwani logout                 # Clear stored credentials
 ### Initialize Project
 
 ```bash
-waniwani mcp init <name>        # Create GitHub repo and clone to ./<name>/
-waniwani mcp init <name> --no-clone  # Create repo without cloning (outputs clone command)
+waniwani mcp init <name>        # Create GitHub repo and local project directory
 ```
 
 This command:
 1. Creates a GitHub repository with the MCP template
-2. Clones the repository to a local `./<name>/` directory
+2. Creates a local `./<name>/` directory
 3. Links the local project to the MCP via `.waniwani/settings.json`
+
+Run `waniwani mcp sync` after to pull the template files.
 
 ### Development
 
@@ -86,8 +89,9 @@ waniwani mcp logs --follow      # Same as -f
 
 **Typical workflow:**
 ```bash
-waniwani mcp init my-server     # Create repo and clone
+waniwani mcp init my-server     # Create repo and local project
 cd my-server
+waniwani mcp sync               # Pull template files
 waniwani mcp dev                # Start sandbox + server + file watcher
 # ... edit files locally (auto-synced) ...
 # Ctrl+C to stop
@@ -157,7 +161,7 @@ All config is stored locally in `.waniwani/settings.json` (no global config).
 
 ## Local Project Structure
 
-After `waniwani mcp init my-mcp`:
+After `waniwani mcp init my-mcp && cd my-mcp && waniwani mcp sync`:
 
 ```
 my-mcp/
@@ -176,7 +180,7 @@ my-mcp/
 
 ## MCP Template
 
-Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is cloned from a GitHub repository during `waniwani mcp init`.
+Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is pulled from GitHub via `waniwani mcp sync`.
 
 The template includes tools, widgets, and all framework utilities.
 
