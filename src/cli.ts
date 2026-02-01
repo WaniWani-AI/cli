@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { configCommand } from "./commands/config/index.js";
 import { loginCommand } from "./commands/login.js";
@@ -5,7 +6,8 @@ import { logoutCommand } from "./commands/logout.js";
 import { mcpCommand } from "./commands/mcp/index.js";
 import { orgCommand } from "./commands/org/index.js";
 
-const version = "0.1.0";
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 export const program = new Command()
 	.name("waniwani")
