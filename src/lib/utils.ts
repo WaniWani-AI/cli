@@ -21,9 +21,27 @@ export async function requireMcpId(mcpId?: string): Promise<string> {
 
 /**
  * Get the active session ID for an MCP repository.
+ * Checks config first, validates with API, falls back to repository.
  * Throws McpError if no active session exists.
  */
 export async function requireSessionId(mcpId: string): Promise<string> {
+	// Check stored sessionId
+	const storedSessionId = await config.getSessionId();
+
+	if (storedSessionId) {
+		// Validate it's still valid
+		try {
+			await api.post(`/api/mcp/sessions/${storedSessionId}/server`, {
+				action: "status",
+			});
+			return storedSessionId;
+		} catch {
+			// Session invalid, clear and fallback
+			await config.setSessionId(null);
+		}
+	}
+
+	// Fetch from repository
 	const repository = await api.get<McpRepository>(
 		`/api/mcp/repositories/${mcpId}`,
 	);
@@ -34,6 +52,8 @@ export async function requireSessionId(mcpId: string): Promise<string> {
 		);
 	}
 
+	// Store for future use
+	await config.setSessionId(repository.activeSandbox.id);
 	return repository.activeSandbox.id;
 }
 

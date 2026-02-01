@@ -14,10 +14,8 @@ const GLOBAL_FILE = join(GLOBAL_DIR, CONFIG_FILE_NAME);
 const DEFAULT_API_URL = "https://app.waniwani.ai";
 
 const ConfigSchema = z.object({
-	mcp: z.object({
-		id: z.string().nullable().default(null),
-		name: z.string().nullable().default(null),
-	}),
+	sessionId: z.string().nullable().default(null),
+	mcpId: z.string().nullable().default(null),
 	apiUrl: z.string().default(DEFAULT_API_URL),
 });
 
@@ -56,12 +54,22 @@ class Config {
 	}
 
 	async getMcpId() {
-		return (await this.load()).mcp.id;
+		return (await this.load()).mcpId;
 	}
 
 	async setMcpId(id: string | null) {
 		const data = await this.load();
-		data.mcp.id = id;
+		data.mcpId = id;
+		await this.save(data);
+	}
+
+	async getSessionId() {
+		return (await this.load()).sessionId;
+	}
+
+	async setSessionId(id: string | null) {
+		const data = await this.load();
+		data.sessionId = id;
 		await this.save(data);
 	}
 

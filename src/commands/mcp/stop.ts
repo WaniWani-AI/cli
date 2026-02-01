@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
+import { config } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../lib/utils.js";
@@ -29,6 +30,9 @@ export const stopCommand = new Command("stop")
 
 			// Delete session
 			await api.delete(`/api/mcp/sessions/${sessionId}`);
+
+			// Clear session from config
+			await config.setSessionId(null);
 
 			spinner.succeed("Development environment stopped");
 

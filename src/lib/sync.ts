@@ -7,7 +7,6 @@ import { api } from "./api.js";
 import { detectBinary, isBinaryPath } from "./utils.js";
 
 const PROJECT_DIR = ".waniwani";
-const SETTINGS_FILE = "settings.json";
 
 /**
  * Find the project root by walking up from the given directory
@@ -34,22 +33,6 @@ export async function findProjectRoot(
 	}
 
 	return null;
-}
-
-/**
- * Load the MCP ID from the project's .waniwani/settings.json
- */
-export async function loadProjectMcpId(
-	projectRoot: string,
-): Promise<string | null> {
-	const settingsPath = join(projectRoot, PROJECT_DIR, SETTINGS_FILE);
-	try {
-		const content = await readFile(settingsPath, "utf-8");
-		const settings = JSON.parse(content);
-		return settings.mcp?.id ?? null;
-	} catch {
-		return null;
-	}
 }
 
 /**

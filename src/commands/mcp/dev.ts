@@ -10,7 +10,6 @@ import {
 	collectSingleFile,
 	findProjectRoot,
 	loadIgnorePatterns,
-	loadProjectMcpId,
 } from "../../lib/sync.js";
 import type {
 	McpSandbox,
@@ -39,9 +38,6 @@ export const devCommand = new Command("dev")
 			}
 
 			let mcpId = options.mcpId;
-			if (!mcpId) {
-				mcpId = await loadProjectMcpId(projectRoot);
-			}
 			if (!mcpId) {
 				mcpId = await config.getMcpId();
 			}
@@ -73,6 +69,9 @@ export const devCommand = new Command("dev")
 				}
 				sessionId = existing.id;
 			}
+
+			// Store session ID in config
+			await config.setSessionId(sessionId);
 
 			// Step 2: Sync current files to sandbox
 			spinner.text = "Syncing files to sandbox...";

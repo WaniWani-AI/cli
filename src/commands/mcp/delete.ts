@@ -50,9 +50,10 @@ export const deleteCommand = new Command("delete")
 			await api.delete(`/api/mcp/repositories/${mcpId}`);
 			spinner.succeed("MCP deleted");
 
-			// Clear active MCP if it was the one we deleted
+			// Clear active MCP and session if it was the one we deleted
 			if ((await config.getMcpId()) === mcpId) {
 				await config.setMcpId(null);
+				await config.setSessionId(null);
 			}
 
 			if (json) {

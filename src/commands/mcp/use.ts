@@ -38,6 +38,8 @@ export const useCommand = new Command("use")
 
 			const cfg = options.global ? globalConfig : config;
 			await cfg.setMcpId(mcp.id);
+			// Clear session since we're switching MCPs
+			await cfg.setSessionId(null);
 
 			if (json) {
 				formatOutput({ selected: mcp, scope: cfg.scope }, true);

@@ -80,14 +80,11 @@ export const initCommand = new Command("init")
 
 				spinner.text = "Setting up project config...";
 
-				// Create .waniwani/settings.json with mcp info
+				// Create .waniwani/settings.json with mcpId
 				const parentConfig = await loadParentConfig(cwd);
 				await initConfigAt(projectDir, {
 					...parentConfig,
-					mcp: {
-						id: result.repository.id,
-						name: result.repository.name,
-					},
+					mcpId: result.repository.id,
 				});
 
 				spinner.succeed("MCP project created");
