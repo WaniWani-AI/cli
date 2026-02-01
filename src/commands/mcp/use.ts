@@ -47,7 +47,7 @@ export const useCommand = new Command("use")
 				console.log(`  MCP ID: ${mcp.id}`);
 				console.log();
 				console.log("Next steps:");
-				console.log("  waniwani mcp dev      # Start live preview");
+				console.log("  waniwani mcp preview      # Start live preview");
 				console.log("  waniwani mcp status   # Check status");
 			}
 		} catch (error) {

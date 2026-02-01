@@ -18,7 +18,7 @@ import type {
 	WriteFilesResponse,
 } from "../../types/index.js";
 
-export const devCommand = new Command("dev")
+export const previewCommand = new Command("preview")
 	.description("Start live development with sandbox and file watching")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.option("--no-watch", "Skip file watching")

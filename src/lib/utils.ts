@@ -26,7 +26,7 @@ export async function requireSessionId(): Promise<string> {
 
 	if (!sessionId) {
 		throw new McpError(
-			"No active session. Run 'waniwani mcp dev' to start development.",
+			"No active session. Run 'waniwani mcp preview' to start development.",
 		);
 	}
 

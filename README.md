@@ -54,7 +54,7 @@ waniwani task "Add a weather tool"
 waniwani mcp test
 
 # Deploy to GitHub + Vercel
-waniwani mcp deploy
+waniwani mcp publish
 ```
 
 ## Commands
@@ -68,7 +68,7 @@ waniwani mcp deploy
 | `mcp use <name>` | Select active MCP |
 | `mcp status` | Show current MCP status |
 | `mcp test [tool]` | Test MCP tools |
-| `mcp deploy` | Deploy to GitHub + Vercel |
+| `mcp publish` | Publish to GitHub + Vercel |
 | `mcp stop` | Stop and cleanup sandbox |
 | `task <prompt>` | Send task to Claude |
 | `org list` | List organizations |

@@ -8,7 +8,7 @@ import { collectFiles, findProjectRoot } from "../../lib/sync.js";
 import { requireMcpId } from "../../lib/utils.js";
 import type { DeployToGithubResponse } from "../../types/index.js";
 
-export const deployCommand = new Command("deploy")
+export const publishCommand = new Command("publish")
 	.description("Push local files to GitHub and trigger deployment")
 	.option("-m, --message <msg>", "Commit message")
 	.option("--mcp-id <id>", "Specific MCP ID")

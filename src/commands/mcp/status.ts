@@ -91,7 +91,7 @@ export const statusCommand = new Command("status")
 
 				console.log();
 				if (!result.activeSandbox) {
-					console.log("Start development: waniwani mcp dev");
+					console.log("Start development: waniwani mcp preview");
 				} else if (!serverStatus?.running) {
 					console.log("View logs: waniwani mcp logs");
 				}

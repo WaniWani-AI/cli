@@ -1,11 +1,11 @@
 import { Command } from "commander";
 import { deleteCommand } from "./delete.js";
-import { deployCommand } from "./deploy.js";
-import { devCommand } from "./dev.js";
 import { fileCommand } from "./file/index.js";
 import { initCommand } from "./init.js";
 import { listCommand } from "./list.js";
 import { logsCommand } from "./logs.js";
+import { previewCommand } from "./preview.js";
+import { publishCommand } from "./publish.js";
 import { runCommandCommand } from "./run-command.js";
 import { statusCommand } from "./status.js";
 import { stopCommand } from "./stop.js";
@@ -18,11 +18,11 @@ export const mcpCommand = new Command("mcp")
 	.addCommand(listCommand)
 	.addCommand(useCommand)
 	.addCommand(statusCommand)
-	.addCommand(devCommand)
+	.addCommand(previewCommand)
 	.addCommand(stopCommand)
 	.addCommand(logsCommand)
 	.addCommand(syncCommand)
-	.addCommand(deployCommand)
+	.addCommand(publishCommand)
 	.addCommand(deleteCommand)
 	.addCommand(fileCommand)
 	.addCommand(runCommandCommand);

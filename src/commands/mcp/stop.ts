@@ -41,7 +41,7 @@ export const stopCommand = new Command("stop")
 			} else {
 				formatSuccess("Sandbox stopped.", false);
 				console.log();
-				console.log("Start again: waniwani mcp dev");
+				console.log("Start again: waniwani mcp preview");
 			}
 		} catch (error) {
 			handleError(error, json);

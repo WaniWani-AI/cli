@@ -54,7 +54,7 @@ export const logsCommand = new Command("logs")
 
 				if (!status.running || !status.cmdId) {
 					throw new McpError(
-						"No server is running. Run 'waniwani mcp dev' first.",
+						"No server is running. Run 'waniwani mcp preview' first.",
 					);
 				}
 				cmdId = status.cmdId;

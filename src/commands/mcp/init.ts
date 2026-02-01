@@ -99,7 +99,7 @@ export const initCommand = new Command("init")
 				console.log("Next steps:");
 				console.log(`  cd ${name}`);
 				console.log("  waniwani mcp sync     # Pull template files");
-				console.log("  waniwani mcp dev      # Start developing");
+				console.log("  waniwani mcp preview      # Start developing");
 			}
 		} catch (error) {
 			handleError(error, json);
