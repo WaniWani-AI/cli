@@ -11,6 +11,7 @@ import {
 } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
+import { pullFilesFromGithub } from "../../lib/sync.js";
 import type { McpRepository } from "../../types/index.js";
 
 /**
@@ -83,12 +84,18 @@ export const initCommand = new Command("init")
 
 			spinner.succeed("MCP project created");
 
+			// Pull template files
+			spinner.start("Pulling template files...");
+			const syncResult = await pullFilesFromGithub(result.id, projectDir);
+			spinner.succeed(`Pulled ${syncResult.count} files`);
+
 			if (json) {
 				formatOutput(
 					{
 						success: true,
 						projectDir,
 						mcpId: result.id,
+						files: syncResult.files,
 					},
 					true,
 				);
@@ -98,7 +105,6 @@ export const initCommand = new Command("init")
 				console.log();
 				console.log("Next steps:");
 				console.log(`  cd ${name}`);
-				console.log("  waniwani mcp sync     # Pull template files");
 				console.log("  waniwani mcp preview      # Start developing");
 			}
 		} catch (error) {

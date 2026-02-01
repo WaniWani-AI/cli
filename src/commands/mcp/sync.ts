@@ -6,7 +6,7 @@ import { findProjectRoot, pullFilesFromGithub } from "../../lib/sync.js";
 import { requireMcpId } from "../../lib/utils.js";
 
 export const syncCommand = new Command("sync")
-	.description("Pull files from GitHub to local project")
+	.description("Pull template files to local project")
 	.option("--mcp-id <id>", "Specific MCP ID")
 	.action(async (options, command) => {
 		const globalOptions = command.optsWithGlobals();
@@ -24,17 +24,17 @@ export const syncCommand = new Command("sync")
 				);
 			}
 
-			const spinner = ora("Pulling files from GitHub...").start();
+			const spinner = ora("Pulling files...").start();
 
 			const result = await pullFilesFromGithub(mcpId, projectRoot);
 
-			spinner.succeed(`Pulled ${result.count} files from GitHub`);
+			spinner.succeed(`Pulled ${result.count} files`);
 
 			if (json) {
 				formatOutput({ files: result.files }, true);
 			} else {
 				console.log();
-				formatSuccess("Files synced from GitHub!", false);
+				formatSuccess("Files synced!", false);
 				if (result.files.length > 0 && result.files.length <= 10) {
 					console.log();
 					for (const file of result.files) {

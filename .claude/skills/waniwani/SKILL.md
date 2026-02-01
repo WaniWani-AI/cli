@@ -10,10 +10,9 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani mcp init my-mcp      # Create GitHub repo and local project
+waniwani mcp init my-mcp      # Create project and pull template files
 cd my-mcp
-waniwani mcp sync             # Pull template files
-waniwani mcp preview              # Start sandbox, sync files, start server, watch for changes
+waniwani mcp preview          # Start sandbox, sync files, start server, watch for changes
 ```
 
 ## Limitations
@@ -24,11 +23,10 @@ waniwani mcp preview              # Start sandbox, sync files, start server, wat
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani mcp init <name>` (creates GitHub repo and local project directory)
-3. **Sync**: `waniwani mcp sync` (pulls template files from GitHub)
-4. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher all in one)
-5. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
-6. **Deploy**: `waniwani mcp publish` to push files to GitHub for production
+2. **Initialize**: `waniwani mcp init <name>` (creates project and pulls template files)
+3. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher all in one)
+4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
+5. **Publish**: `waniwani mcp publish` to push files for production
 
 ## Commands
 
@@ -43,15 +41,14 @@ waniwani logout                 # Clear stored credentials
 ### Initialize Project
 
 ```bash
-waniwani mcp init <name>        # Create GitHub repo and local project directory
+waniwani mcp init <name>        # Create project and pull template files
 ```
 
 This command:
-1. Creates a GitHub repository with the MCP template
+1. Creates the MCP on WaniWani
 2. Creates a local `./<name>/` directory
-3. Links the local project to the MCP via `.waniwani/settings.json`
-
-Run `waniwani mcp sync` after to pull the template files.
+3. Pulls template files automatically
+4. Links the local project to the MCP via `.waniwani/settings.json`
 
 ### Development
 
@@ -89,13 +86,12 @@ waniwani mcp logs --follow      # Same as -f
 
 **Typical workflow:**
 ```bash
-waniwani mcp init my-server     # Create repo and local project
+waniwani mcp init my-server     # Create project and pull template
 cd my-server
-waniwani mcp sync               # Pull template files
-waniwani mcp preview                # Start sandbox + server + file watcher
+waniwani mcp preview            # Start sandbox + server + file watcher
 # ... edit files locally (auto-synced) ...
 # Ctrl+C to stop
-waniwani mcp publish             # Push files to GitHub and publish
+waniwani mcp publish            # Publish to production
 ```
 
 ### Testing with MCP Inspector
@@ -111,18 +107,18 @@ The inspector provides a web UI to:
 - Call tools with custom inputs
 - View tool responses
 
-### Deployment & Sync
+### Publish & Sync
 
 ```bash
-waniwani mcp publish -m "message"    # Push local files to GitHub with commit message
+waniwani mcp publish -m "message"    # Push local files with commit message
 waniwani mcp publish                 # Prompts for commit message interactively
-waniwani mcp sync                   # Pull files from GitHub to local project
+waniwani mcp sync                    # Pull latest files to local project
 ```
 
 The `publish` command:
 1. Collects all local files (respects .gitignore)
-2. Pushes them to the WaniWani GitHub repository with the provided commit message
-3. Deployment starts automatically via webhook
+2. Pushes them with the provided commit message
+3. Deployment starts automatically
 
 ### Organization Management
 
@@ -161,7 +157,7 @@ All config is stored locally in `.waniwani/settings.json` (no global config).
 
 ## Local Project Structure
 
-After `waniwani mcp init my-mcp && cd my-mcp && waniwani mcp sync`:
+After `waniwani mcp init my-mcp`:
 
 ```
 my-mcp/
@@ -180,7 +176,7 @@ my-mcp/
 
 ## MCP Template
 
-Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is pulled from GitHub via `waniwani mcp sync`.
+Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is pulled automatically during `waniwani mcp init`.
 
 The template includes tools, widgets, and all framework utilities.
 
