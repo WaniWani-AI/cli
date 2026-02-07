@@ -1,7 +1,8 @@
 import { Command } from "commander";
+import { cloneCommand } from "./clone.js";
+import { createCommand } from "./create.js";
 import { deleteCommand } from "./delete.js";
 import { fileCommand } from "./file/index.js";
-import { initCommand } from "./init.js";
 import { listCommand } from "./list.js";
 import { logsCommand } from "./logs.js";
 import { previewCommand } from "./preview.js";
@@ -14,7 +15,8 @@ import { useCommand } from "./use.js";
 
 export const mcpCommand = new Command("mcp")
 	.description("MCP management commands")
-	.addCommand(initCommand)
+	.addCommand(createCommand)
+	.addCommand(cloneCommand)
 	.addCommand(listCommand)
 	.addCommand(useCommand)
 	.addCommand(statusCommand)

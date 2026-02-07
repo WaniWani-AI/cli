@@ -13,6 +13,36 @@ import type {
 	OAuthTokenResponse,
 } from "../types/index.js";
 
+// ASCII art logo for WaniWani
+const LOGO_LINES = [
+	"██╗    ██╗ █████╗ ███╗   ██╗ ██╗ ██╗    ██╗ █████╗ ███╗   ██╗ ██╗",
+	"██║    ██║██╔══██╗████╗  ██║ ██║ ██║    ██║██╔══██╗████╗  ██║ ██║",
+	"██║ █╗ ██║███████║██╔██╗ ██║ ██║ ██║ █╗ ██║███████║██╔██╗ ██║ ██║",
+	"██║███╗██║██╔══██║██║╚██╗██║ ██║ ██║███╗██║██╔══██║██║╚██╗██║ ██║",
+	"╚███╔███╔╝██║  ██║██║ ╚████║ ██║ ╚███╔███╔╝██║  ██║██║ ╚████║ ██║",
+	" ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═╝  ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═╝",
+];
+
+// 256-color gradient - warm tones inspired by WaniWani brand
+const LOGO_COLORS = [
+	"\x1b[38;5;223m", // light peach
+	"\x1b[38;5;216m", // peach
+	"\x1b[38;5;209m", // salmon
+	"\x1b[38;5;203m", // coral
+	"\x1b[38;5;167m", // warm red
+	"\x1b[38;5;131m", // deep terracotta
+];
+
+const RESET = "\x1b[0m";
+
+function showLogo(): void {
+	console.log();
+	for (let i = 0; i < LOGO_LINES.length; i++) {
+		console.log(`${LOGO_COLORS[i]}${LOGO_LINES[i]}${RESET}`);
+	}
+	console.log();
+}
+
 const CALLBACK_PORT = 54321;
 const CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/callback`;
 const CLIENT_NAME = "waniwani-cli";
@@ -391,7 +421,7 @@ export const loginCommand = new Command("login")
 			}
 
 			if (!json) {
-				console.log(chalk.bold("\nWaniWani CLI Login\n"));
+				showLogo();
 			}
 
 			const spinner = ora("Registering client...").start();

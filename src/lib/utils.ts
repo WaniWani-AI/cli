@@ -11,7 +11,7 @@ export async function requireMcpId(mcpId?: string): Promise<string> {
 	const configMcpId = await config.getMcpId();
 	if (!configMcpId) {
 		throw new McpError(
-			"No active MCP. Run 'waniwani mcp init <name>' or 'waniwani mcp use <name>'.",
+			"No active MCP. Run 'waniwani mcp create <name>' or 'waniwani mcp use <name>'.",
 		);
 	}
 	return configMcpId;

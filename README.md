@@ -45,7 +45,7 @@ Requires Node.js 20 or later.
 waniwani login
 
 # Create an MCP project
-waniwani mcp init my-server
+waniwani mcp create my-server
 
 # Send tasks to Claude
 waniwani task "Add a weather tool"
@@ -63,7 +63,8 @@ waniwani mcp publish
 |---------|-------------|
 | `login` | Authenticate with WaniWani |
 | `logout` | Clear local credentials |
-| `mcp init <name>` | Create a new MCP project |
+| `mcp create <name>` | Create a new MCP project |
+| `mcp clone <name>` | Clone an existing MCP locally |
 | `mcp list` | List your MCPs |
 | `mcp use <name>` | Select active MCP |
 | `mcp status` | Show current MCP status |

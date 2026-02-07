@@ -41,7 +41,7 @@ export const listCommand = new Command("list")
 			} else {
 				if (mcps.length === 0) {
 					console.log("No MCPs found.");
-					console.log("\nCreate a new MCP: waniwani mcp init <name>");
+					console.log("\nCreate a new MCP: waniwani mcp create <name>");
 					return;
 				}
 

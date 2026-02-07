@@ -31,7 +31,7 @@ export const previewCommand = new Command("preview")
 			const projectRoot = await findProjectRoot(process.cwd());
 			if (!projectRoot) {
 				throw new CLIError(
-					"Not in a WaniWani project. Run 'waniwani mcp init <name>' first.",
+					"Not in a WaniWani project. Run 'waniwani mcp create <name>' first.",
 					"NOT_IN_PROJECT",
 				);
 			}
@@ -42,7 +42,7 @@ export const previewCommand = new Command("preview")
 			}
 			if (!mcpId) {
 				throw new CLIError(
-					"No MCP found. Run 'waniwani mcp init <name>' or use --mcp-id.",
+					"No MCP found. Run 'waniwani mcp create <name>' or use --mcp-id.",
 					"NO_MCP",
 				);
 			}

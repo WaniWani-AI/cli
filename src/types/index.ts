@@ -265,7 +265,16 @@ export const LogEventSchema = z.object({
 export type LogEvent = z.infer<typeof LogEventSchema>;
 
 // ============================================
-// Pull Files Types (for init)
+// Clone URL Response (for mcp create)
+// ============================================
+
+export const CloneUrlResponseSchema = z.object({
+	cloneUrl: z.string(),
+});
+export type CloneUrlResponse = z.infer<typeof CloneUrlResponseSchema>;
+
+// ============================================
+// Pull Files Types (for sync)
 // ============================================
 
 // Recursive file listing - returns all files with their content

@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
@@ -9,10 +10,9 @@ import {
 	initConfigAt,
 	LOCAL_CONFIG_DIR,
 } from "../../lib/config.js";
-import { handleError } from "../../lib/errors.js";
+import { CLIError, handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import { pullFilesFromGithub } from "../../lib/sync.js";
-import type { McpRepository } from "../../types/index.js";
+import type { CloneUrlResponse, McpRepository } from "../../types/index.js";
 
 /**
  * Load parent .waniwani/settings.json if it exists.
@@ -38,7 +38,18 @@ async function loadParentConfig(
 	}
 }
 
-export const initCommand = new Command("init")
+function checkGitInstalled(): void {
+	try {
+		execSync("git --version", { stdio: "ignore" });
+	} catch {
+		throw new CLIError(
+			"git is required but not found. Install it from https://git-scm.com/",
+			"GIT_NOT_FOUND",
+		);
+	}
+}
+
+export const createCommand = new Command("create")
 	.description("Create a new MCP project")
 	.argument("<name>", "Name for the MCP project")
 	.action(async (name: string, _options, command) => {
@@ -65,6 +76,9 @@ export const initCommand = new Command("init")
 				process.exit(1);
 			}
 
+			// Check git is installed before making API calls
+			checkGitInstalled();
+
 			// Create repository on backend (GitHub repo created immediately)
 			const spinner = ora("Creating MCP...").start();
 
@@ -72,10 +86,26 @@ export const initCommand = new Command("init")
 				name,
 			});
 
-			// Create local project directory
-			mkdirSync(projectDir, { recursive: true });
+			// Get authenticated clone URL
+			spinner.text = "Cloning repository...";
+			const { cloneUrl } = await api.get<CloneUrlResponse>(
+				`/api/mcp/repositories/${result.id}/clone-url`,
+			);
 
-			// Create .waniwani/settings.json with mcpId
+			// Clone the repository
+			try {
+				execSync(`git clone "${cloneUrl}" "${projectDir}"`, {
+					stdio: "ignore",
+				});
+			} catch {
+				spinner.fail("Failed to clone repository");
+				throw new CLIError(
+					`Failed to clone repository. Ensure git is configured correctly.`,
+					"CLONE_FAILED",
+				);
+			}
+
+			// Create .waniwani/settings.json with mcpId (after clone so dir exists)
 			const parentConfig = await loadParentConfig(cwd);
 			await initConfigAt(projectDir, {
 				...parentConfig,
@@ -84,18 +114,12 @@ export const initCommand = new Command("init")
 
 			spinner.succeed("MCP project created");
 
-			// Pull template files
-			spinner.start("Pulling template files...");
-			const syncResult = await pullFilesFromGithub(result.id, projectDir);
-			spinner.succeed(`Pulled ${syncResult.count} files`);
-
 			if (json) {
 				formatOutput(
 					{
 						success: true,
 						projectDir,
 						mcpId: result.id,
-						files: syncResult.files,
 					},
 					true,
 				);

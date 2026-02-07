@@ -61,7 +61,7 @@ All config is stored locally in `.waniwani/settings.json` (per-project, no globa
 ### Auth Flow
 
 - `waniwani login` creates `.waniwani/` in current directory if needed
-- `waniwani mcp init` copies parent `.waniwani/` to new project (including auth)
+- `waniwani mcp create` copies parent `.waniwani/` to new project (including auth)
 
 ## Key Patterns
 

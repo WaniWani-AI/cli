@@ -10,7 +10,7 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 
 ```bash
 waniwani login                # Authenticate with WaniWani
-waniwani mcp init my-mcp      # Create project and pull template files
+waniwani mcp create my-mcp      # Create project and pull template files
 cd my-mcp
 waniwani mcp preview          # Start sandbox, sync files, start server, watch for changes
 ```
@@ -23,7 +23,7 @@ waniwani mcp preview          # Start sandbox, sync files, start server, watch f
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani mcp init <name>` (creates project and pulls template files)
+2. **Initialize**: `waniwani mcp create <name>` (creates project and pulls template files)
 3. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher all in one)
 4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
 5. **Publish**: `waniwani mcp publish` to push files for production
@@ -41,14 +41,13 @@ waniwani logout                 # Clear stored credentials
 ### Initialize Project
 
 ```bash
-waniwani mcp init <name>        # Create project and pull template files
+waniwani mcp create <name>        # Create a new MCP and clone it locally
+waniwani mcp clone <name>         # Clone an existing MCP to a local directory
+waniwani mcp clone <name> <dir>   # Clone into a specific directory
 ```
 
-This command:
-1. Creates the MCP on WaniWani
-2. Creates a local `./<name>/` directory
-3. Pulls template files automatically
-4. Links the local project to the MCP via `.waniwani/settings.json`
+`mcp create` creates a new MCP on WaniWani and clones it locally.
+`mcp clone` clones an existing MCP by name (useful for pulling to a new machine or directory).
 
 ### Development
 
@@ -86,7 +85,7 @@ waniwani mcp logs --follow      # Same as -f
 
 **Typical workflow:**
 ```bash
-waniwani mcp init my-server     # Create project and pull template
+waniwani mcp create my-server     # Create project and pull template
 cd my-server
 waniwani mcp preview            # Start sandbox + server + file watcher
 # ... edit files locally (auto-synced) ...
@@ -153,11 +152,11 @@ All config is stored locally in `.waniwani/settings.json` (no global config).
 ### Auth Flow
 
 - `waniwani login` creates `.waniwani/` in current directory if needed
-- `waniwani mcp init` copies parent `.waniwani/` to new project (including auth tokens)
+- `waniwani mcp create` copies parent `.waniwani/` to new project (including auth tokens)
 
 ## Local Project Structure
 
-After `waniwani mcp init my-mcp`:
+After `waniwani mcp create my-mcp`:
 
 ```
 my-mcp/
@@ -176,7 +175,7 @@ my-mcp/
 
 ## MCP Template
 
-Projects are initialized with a **pre-configured MCP template** based on Next.js 15, ready for ChatGPT integration. The template is pulled automatically during `waniwani mcp init`.
+Projects are initialized with a **pre-configured MCP template** based on Next.js 16, ready for ChatGPT integration. The template is pulled automatically during `waniwani mcp create`.
 
 The template includes tools, widgets, and all framework utilities.
 

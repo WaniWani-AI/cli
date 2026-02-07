@@ -23,7 +23,7 @@ export const publishCommand = new Command("publish")
 			const projectRoot = await findProjectRoot(process.cwd());
 			if (!projectRoot) {
 				throw new CLIError(
-					"Not in a WaniWani project. Run 'waniwani mcp init <name>' first.",
+					"Not in a WaniWani project. Run 'waniwani mcp create <name>' first.",
 					"NOT_IN_PROJECT",
 				);
 			}
