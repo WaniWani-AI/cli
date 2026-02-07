@@ -1,12 +1,13 @@
+import { execSync } from "node:child_process";
 import { input } from "@inquirer/prompts";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
 import { CLIError, handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import { collectFiles, findProjectRoot } from "../../lib/sync.js";
+import { findProjectRoot } from "../../lib/sync.js";
 import { requireMcpId } from "../../lib/utils.js";
-import type { DeployToGithubResponse } from "../../types/index.js";
+import type { CloneUrlResponse } from "../../types/index.js";
 
 export const publishCommand = new Command("publish")
 	.description("Push local files to GitHub and trigger deployment")
@@ -28,6 +29,34 @@ export const publishCommand = new Command("publish")
 				);
 			}
 
+			// Check this is a git repo
+			try {
+				execSync("git rev-parse --is-inside-work-tree", {
+					cwd: projectRoot,
+					stdio: "ignore",
+				});
+			} catch {
+				throw new CLIError(
+					"Not a git repository. Run 'waniwani mcp create <name>' or 'waniwani mcp clone <name>' to set up properly.",
+					"NOT_GIT_REPO",
+				);
+			}
+
+			// Check if there are changes to commit
+			const status = execSync("git status --porcelain", {
+				cwd: projectRoot,
+				encoding: "utf-8",
+			}).trim();
+
+			if (!status) {
+				if (json) {
+					formatOutput({ success: true, message: "Nothing to publish" }, true);
+				} else {
+					console.log("Nothing to publish — no changes detected.");
+				}
+				return;
+			}
+
 			// Get commit message
 			let message = options.message;
 			if (!message) {
@@ -38,27 +67,54 @@ export const publishCommand = new Command("publish")
 				});
 			}
 
-			const spinner = ora("Collecting files...").start();
+			const spinner = ora("Publishing...").start();
 
-			// Collect all files from the project
-			const files = await collectFiles(projectRoot);
-
-			if (files.length === 0) {
-				spinner.fail("No files to deploy");
-				return;
-			}
-
-			spinner.text = `Pushing ${files.length} files to GitHub...`;
-
-			const result = await api.post<DeployToGithubResponse>(
-				`/api/mcp/repositories/${mcpId}/deploy`,
-				{ files, message },
+			// Get authenticated clone URL
+			const { cloneUrl } = await api.get<CloneUrlResponse>(
+				`/api/mcp/repositories/${mcpId}/clone-url`,
 			);
 
-			spinner.succeed(`Pushed to GitHub (${result.commitSha.slice(0, 7)})`);
+			// Stage all changes, commit, and push
+			spinner.text = "Committing changes...";
+			execSync("git add -A", { cwd: projectRoot, stdio: "ignore" });
+			execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+				cwd: projectRoot,
+				stdio: "ignore",
+			});
+
+			// Temporarily set remote URL with token, push, then reset
+			spinner.text = "Pushing to GitHub...";
+			const originalUrl = execSync("git remote get-url origin", {
+				cwd: projectRoot,
+				encoding: "utf-8",
+			}).trim();
+
+			try {
+				execSync(`git remote set-url origin "${cloneUrl}"`, {
+					cwd: projectRoot,
+					stdio: "ignore",
+				});
+				execSync("git push origin HEAD", {
+					cwd: projectRoot,
+					stdio: "ignore",
+				});
+			} finally {
+				// Always restore the original remote URL
+				execSync(`git remote set-url origin "${originalUrl}"`, {
+					cwd: projectRoot,
+					stdio: "ignore",
+				});
+			}
+
+			const commitSha = execSync("git rev-parse HEAD", {
+				cwd: projectRoot,
+				encoding: "utf-8",
+			}).trim();
+
+			spinner.succeed(`Pushed to GitHub (${commitSha.slice(0, 7)})`);
 
 			if (json) {
-				formatOutput(result, true);
+				formatOutput({ commitSha, message }, true);
 			} else {
 				console.log();
 				formatSuccess("Files pushed to GitHub!", false);
