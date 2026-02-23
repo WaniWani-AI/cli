@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,9 +11,13 @@ import {
 	LOCAL_CONFIG_DIR,
 } from "../../lib/config.js";
 import { CLIError, handleError, McpError } from "../../lib/errors.js";
+import {
+	getGitAuthContext,
+	revokeGitHubInstallationToken,
+	runGitWithCredentials,
+} from "../../lib/git-auth.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import type {
-	CloneUrlResponse,
 	McpRepository,
 	McpRepositoryListResponse,
 } from "../../types/index.js";
@@ -97,16 +101,15 @@ export const cloneCommand = new Command("clone")
 				);
 			}
 
-			// Get authenticated clone URL
+			// Get authenticated clone context
 			spinner.text = "Cloning repository...";
-			const { cloneUrl } = await api.get<CloneUrlResponse>(
-				`/api/mcp/repositories/${mcp.id}/clone-url`,
-			);
+			const gitAuth = await getGitAuthContext(mcp.id);
 
 			// Clone the repository
 			try {
-				execSync(`git clone "${cloneUrl}" "${projectDir}"`, {
+				runGitWithCredentials(["clone", gitAuth.remoteUrl, projectDir], {
 					stdio: "ignore",
+					credentials: gitAuth.credentials,
 				});
 			} catch {
 				spinner.fail("Failed to clone repository");
@@ -114,7 +117,15 @@ export const cloneCommand = new Command("clone")
 					"Failed to clone repository. Ensure git is configured correctly.",
 					"CLONE_FAILED",
 				);
+			} finally {
+				await revokeGitHubInstallationToken(gitAuth);
 			}
+
+			// Keep origin clean (no embedded credentials/signatures)
+			execFileSync("git", ["remote", "set-url", "origin", mcp.githubCloneUrl], {
+				cwd: projectDir,
+				stdio: "ignore",
+			});
 
 			// Create .waniwani/settings.json with mcpId
 			const parentConfig = await loadParentConfig(cwd);

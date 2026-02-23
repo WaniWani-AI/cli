@@ -273,6 +273,15 @@ export const CloneUrlResponseSchema = z.object({
 });
 export type CloneUrlResponse = z.infer<typeof CloneUrlResponseSchema>;
 
+// Structured ephemeral git auth response
+export const GitAuthResponseSchema = z.object({
+	remoteUrl: z.string(),
+	username: z.string(),
+	token: z.string(),
+	expiresAt: z.string().nullable().optional(),
+});
+export type GitAuthResponse = z.infer<typeof GitAuthResponseSchema>;
+
 // ============================================
 // Pull Files Types (for sync)
 // ============================================
