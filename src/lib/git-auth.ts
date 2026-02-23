@@ -161,11 +161,15 @@ esac
  * Best-effort revocation for GitHub App installation tokens.
  * If the token type/host doesn't support this endpoint, this is a no-op.
  */
+const REVOKE_TIMEOUT_MS = 5_000;
+
 export async function revokeGitHubInstallationToken(
 	auth: GitAuthContext,
 ): Promise<void> {
 	if (!auth.credentials?.password || !auth.githubApiBaseUrl) return;
 
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REVOKE_TIMEOUT_MS);
 	try {
 		await fetch(`${auth.githubApiBaseUrl}/installation/token`, {
 			method: "DELETE",
@@ -174,8 +178,11 @@ export async function revokeGitHubInstallationToken(
 				Authorization: `Bearer ${auth.credentials.password}`,
 				"X-GitHub-Api-Version": "2022-11-28",
 			},
+			signal: controller.signal,
 		});
 	} catch {
 		// Best-effort only; token still naturally expires.
+	} finally {
+		clearTimeout(timeout);
 	}
 }
