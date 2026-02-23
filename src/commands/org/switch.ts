@@ -13,7 +13,7 @@ import type {
 export const switchCommand = new Command("switch")
 	.description("Switch to a different organization")
 	.argument("<name>", "Name or slug of the organization to switch to")
-	.action(async (name: string, _, command) => {
+	.action(async (name: string, _options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 

@@ -5,7 +5,7 @@ import { formatOutput, formatSuccess } from "../lib/output.js";
 
 export const logoutCommand = new Command("logout")
 	.description("Log out from WaniWani")
-	.action(async (_, command) => {
+	.action(async (_options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
