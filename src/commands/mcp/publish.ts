@@ -1,13 +1,16 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { input } from "@inquirer/prompts";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
 import { CLIError, handleError } from "../../lib/errors.js";
+import {
+	getGitAuthContext,
+	revokeGitHubInstallationToken,
+	runGitWithCredentials,
+} from "../../lib/git-auth.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import { findProjectRoot } from "../../lib/sync.js";
 import { requireMcpId } from "../../lib/utils.js";
-import type { CloneUrlResponse } from "../../types/index.js";
 
 export const publishCommand = new Command("publish")
 	.description("Push local files to GitHub and trigger deployment")
@@ -31,7 +34,7 @@ export const publishCommand = new Command("publish")
 
 			// Check this is a git repo
 			try {
-				execSync("git rev-parse --is-inside-work-tree", {
+				execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
 					cwd: projectRoot,
 					stdio: "ignore",
 				});
@@ -43,7 +46,7 @@ export const publishCommand = new Command("publish")
 			}
 
 			// Check if there are changes to commit
-			const status = execSync("git status --porcelain", {
+			const status = execFileSync("git", ["status", "--porcelain"], {
 				cwd: projectRoot,
 				encoding: "utf-8",
 			}).trim();
@@ -68,45 +71,29 @@ export const publishCommand = new Command("publish")
 			}
 
 			const spinner = ora("Publishing...").start();
-
-			// Get authenticated clone URL
-			const { cloneUrl } = await api.get<CloneUrlResponse>(
-				`/api/mcp/repositories/${mcpId}/clone-url`,
-			);
+			const gitAuth = await getGitAuthContext(mcpId);
 
 			// Stage all changes, commit, and push
 			spinner.text = "Committing changes...";
-			execSync("git add -A", { cwd: projectRoot, stdio: "ignore" });
-			execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+			execFileSync("git", ["add", "-A"], { cwd: projectRoot, stdio: "ignore" });
+			execFileSync("git", ["commit", "-m", message], {
 				cwd: projectRoot,
 				stdio: "ignore",
 			});
 
-			// Temporarily set remote URL with token, push, then reset
+			// Push with ephemeral credentials without mutating origin URL
 			spinner.text = "Pushing to GitHub...";
-			const originalUrl = execSync("git remote get-url origin", {
-				cwd: projectRoot,
-				encoding: "utf-8",
-			}).trim();
-
 			try {
-				execSync(`git remote set-url origin "${cloneUrl}"`, {
+				runGitWithCredentials(["push", gitAuth.remoteUrl, "HEAD"], {
 					cwd: projectRoot,
 					stdio: "ignore",
-				});
-				execSync("git push origin HEAD", {
-					cwd: projectRoot,
-					stdio: "ignore",
+					credentials: gitAuth.credentials,
 				});
 			} finally {
-				// Always restore the original remote URL
-				execSync(`git remote set-url origin "${originalUrl}"`, {
-					cwd: projectRoot,
-					stdio: "ignore",
-				});
+				await revokeGitHubInstallationToken(gitAuth);
 			}
 
-			const commitSha = execSync("git rev-parse HEAD", {
+			const commitSha = execFileSync("git", ["rev-parse", "HEAD"], {
 				cwd: projectRoot,
 				encoding: "utf-8",
 			}).trim();

@@ -8,7 +8,7 @@ import type { Org, OrgListResponse } from "../../types/index.js";
 
 export const listCommand = new Command("list")
 	.description("List your organizations")
-	.action(async (_, command) => {
+	.action(async (_options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 

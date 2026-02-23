@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,8 +11,13 @@ import {
 	LOCAL_CONFIG_DIR,
 } from "../../lib/config.js";
 import { CLIError, handleError } from "../../lib/errors.js";
+import {
+	getGitAuthContext,
+	revokeGitHubInstallationToken,
+	runGitWithCredentials,
+} from "../../lib/git-auth.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { CloneUrlResponse, McpRepository } from "../../types/index.js";
+import type { McpRepository } from "../../types/index.js";
 
 /**
  * Load parent .waniwani/settings.json if it exists.
@@ -86,16 +91,15 @@ export const createCommand = new Command("create")
 				name,
 			});
 
-			// Get authenticated clone URL
+			// Get authenticated clone context
 			spinner.text = "Cloning repository...";
-			const { cloneUrl } = await api.get<CloneUrlResponse>(
-				`/api/mcp/repositories/${result.id}/clone-url`,
-			);
+			const gitAuth = await getGitAuthContext(result.id);
 
 			// Clone the repository
 			try {
-				execSync(`git clone "${cloneUrl}" "${projectDir}"`, {
+				runGitWithCredentials(["clone", gitAuth.remoteUrl, projectDir], {
 					stdio: "ignore",
+					credentials: gitAuth.credentials,
 				});
 			} catch {
 				spinner.fail("Failed to clone repository");
@@ -103,7 +107,19 @@ export const createCommand = new Command("create")
 					`Failed to clone repository. Ensure git is configured correctly.`,
 					"CLONE_FAILED",
 				);
+			} finally {
+				await revokeGitHubInstallationToken(gitAuth);
 			}
+
+			// Keep origin clean (no embedded credentials/signatures)
+			execFileSync(
+				"git",
+				["remote", "set-url", "origin", result.githubCloneUrl],
+				{
+					cwd: projectDir,
+					stdio: "ignore",
+				},
+			);
 
 			// Create .waniwani/settings.json with mcpId (after clone so dir exists)
 			const parentConfig = await loadParentConfig(cwd);

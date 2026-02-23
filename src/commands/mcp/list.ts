@@ -12,7 +12,7 @@ import type {
 
 export const listCommand = new Command("list")
 	.description("List all MCPs in your organization")
-	.action(async (_, command) => {
+	.action(async (_options, command) => {
 		const globalOptions = command.optsWithGlobals();
 		const json = globalOptions.json ?? false;
 
