@@ -157,18 +157,16 @@ export const previewCommand = new Command("preview")
 						SHUTDOWN_STEP_TIMEOUT_MS,
 					);
 
-					const deleteResult = await withTimeout(
+					await withTimeout(
 						api.delete(`/api/mcp/sessions/${sessionId}`).catch(() => undefined),
 						SHUTDOWN_STEP_TIMEOUT_MS,
 					);
 
-					// Clear local session only if delete request completed.
-					if (deleteResult !== null) {
-						await withTimeout(
-							config.setSessionId(null),
-							SHUTDOWN_STEP_TIMEOUT_MS,
-						);
-					}
+					// Always clear local session on exit; remote cleanup is best-effort.
+					await withTimeout(
+						config.setSessionId(null).catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
 				};
 
 				let shuttingDown = false;
@@ -179,20 +177,25 @@ export const previewCommand = new Command("preview")
 					console.log();
 					console.log("Stopping development environment...");
 
-					await withTimeout(
-						(async () => {
-							await withTimeout(watcher.close(), SHUTDOWN_STEP_TIMEOUT_MS);
-							await stopSessionBestEffort();
-						})(),
-						SHUTDOWN_MAX_WAIT_MS,
-						{
-							onTimeout: () => {
-								console.log("Shutdown timed out, forcing exit.");
+					try {
+						await withTimeout(
+							(async () => {
+								await withTimeout(
+									watcher.close().catch(() => undefined),
+									SHUTDOWN_STEP_TIMEOUT_MS,
+								);
+								await stopSessionBestEffort();
+							})(),
+							SHUTDOWN_MAX_WAIT_MS,
+							{
+								onTimeout: () => {
+									console.log("Shutdown timed out, forcing exit.");
+								},
 							},
-						},
-					);
-
-					process.exit(0);
+						);
+					} finally {
+						process.exit(0);
+					}
 				};
 
 				// Handle graceful process termination.
