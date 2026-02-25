@@ -17,6 +17,29 @@ import type {
 	WriteFilesResponse,
 } from "../../types/index.js";
 
+const SHUTDOWN_MAX_WAIT_MS = 3000;
+const SHUTDOWN_STEP_TIMEOUT_MS = 1200;
+
+async function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+): Promise<T | null> {
+	let timer: NodeJS.Timeout | undefined;
+
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<null>((resolve) => {
+				timer = setTimeout(() => resolve(null), timeoutMs);
+			}),
+		]);
+	} finally {
+		if (timer) {
+			clearTimeout(timer);
+		}
+	}
+}
+
 export const previewCommand = new Command("preview")
 	.description("Start live development with sandbox and file watching")
 	.option("--mcp-id <id>", "Specific MCP ID")
@@ -143,12 +166,56 @@ export const previewCommand = new Command("preview")
 					console.log(`  Deleted: ${relativePath}`);
 				});
 
-				// Handle Ctrl+C gracefully
-				process.on("SIGINT", async () => {
+				const stopSessionBestEffort = async () => {
+					// Stop server first; ignore failures/timeouts and continue.
+					await withTimeout(
+						api
+							.post(`/api/mcp/sessions/${sessionId}/server`, { action: "stop" })
+							.catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
+
+					const deleteResult = await withTimeout(
+						api.delete(`/api/mcp/sessions/${sessionId}`).catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
+
+					// Clear local session only if delete request completed.
+					if (deleteResult !== null) {
+						await withTimeout(
+							config.setSessionId(null),
+							SHUTDOWN_STEP_TIMEOUT_MS,
+						);
+					}
+				};
+
+				let shuttingDown = false;
+				const gracefulShutdown = async () => {
+					if (shuttingDown) return;
+					shuttingDown = true;
+
 					console.log();
 					console.log("Stopping development environment...");
-					await watcher.close();
-					process.exit(0);
+
+					const hardExitTimer = setTimeout(() => {
+						process.exit(0);
+					}, SHUTDOWN_MAX_WAIT_MS);
+
+					try {
+						await withTimeout(watcher.close(), SHUTDOWN_STEP_TIMEOUT_MS);
+						await stopSessionBestEffort();
+					} finally {
+						clearTimeout(hardExitTimer);
+						process.exit(0);
+					}
+				};
+
+				// Handle graceful process termination.
+				process.once("SIGINT", () => {
+					void gracefulShutdown();
+				});
+				process.once("SIGTERM", () => {
+					void gracefulShutdown();
 				});
 
 				// Keep the process running
