@@ -2,6 +2,7 @@ import { watch } from "chokidar";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
+import { withTimeout } from "../../lib/async.js";
 import { config } from "../../lib/config.js";
 import { CLIError, handleError } from "../../lib/errors.js";
 import { formatSuccess } from "../../lib/output.js";
@@ -16,6 +17,9 @@ import type {
 	SandboxStartResponse,
 	WriteFilesResponse,
 } from "../../types/index.js";
+
+const SHUTDOWN_MAX_WAIT_MS = 3000;
+const SHUTDOWN_STEP_TIMEOUT_MS = 1200;
 
 export const previewCommand = new Command("preview")
 	.description("Start live development with sandbox and file watching")
@@ -143,12 +147,63 @@ export const previewCommand = new Command("preview")
 					console.log(`  Deleted: ${relativePath}`);
 				});
 
-				// Handle Ctrl+C gracefully
-				process.on("SIGINT", async () => {
+				const stopSessionBestEffort = async () => {
+					// Best-effort remote cleanup so Ctrl+C does not keep orphaned sessions alive.
+					// Stop server first; ignore failures/timeouts and continue.
+					await withTimeout(
+						api
+							.post(`/api/mcp/sessions/${sessionId}/server`, { action: "stop" })
+							.catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
+
+					await withTimeout(
+						api.delete(`/api/mcp/sessions/${sessionId}`).catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
+
+					// Always clear local session on exit; remote cleanup is best-effort.
+					await withTimeout(
+						config.setSessionId(null).catch(() => undefined),
+						SHUTDOWN_STEP_TIMEOUT_MS,
+					);
+				};
+
+				let shuttingDown = false;
+				const gracefulShutdown = async () => {
+					if (shuttingDown) return;
+					shuttingDown = true;
+
 					console.log();
 					console.log("Stopping development environment...");
-					await watcher.close();
-					process.exit(0);
+
+					try {
+						await withTimeout(
+							(async () => {
+								await withTimeout(
+									watcher.close().catch(() => undefined),
+									SHUTDOWN_STEP_TIMEOUT_MS,
+								);
+								await stopSessionBestEffort();
+							})(),
+							SHUTDOWN_MAX_WAIT_MS,
+							{
+								onTimeout: () => {
+									console.log("Shutdown timed out, forcing exit.");
+								},
+							},
+						);
+					} finally {
+						process.exit(0);
+					}
+				};
+
+				// Handle graceful process termination.
+				process.once("SIGINT", () => {
+					void gracefulShutdown();
+				});
+				process.once("SIGTERM", () => {
+					void gracefulShutdown();
 				});
 
 				// Keep the process running
