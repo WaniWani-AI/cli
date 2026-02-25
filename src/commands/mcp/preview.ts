@@ -2,6 +2,7 @@ import { watch } from "chokidar";
 import { Command } from "commander";
 import ora from "ora";
 import { api } from "../../lib/api.js";
+import { withTimeout } from "../../lib/async.js";
 import { config } from "../../lib/config.js";
 import { CLIError, handleError } from "../../lib/errors.js";
 import { formatSuccess } from "../../lib/output.js";
@@ -19,26 +20,6 @@ import type {
 
 const SHUTDOWN_MAX_WAIT_MS = 3000;
 const SHUTDOWN_STEP_TIMEOUT_MS = 1200;
-
-async function withTimeout<T>(
-	promise: Promise<T>,
-	timeoutMs: number,
-): Promise<T | null> {
-	let timer: NodeJS.Timeout | undefined;
-
-	try {
-		return await Promise.race([
-			promise,
-			new Promise<null>((resolve) => {
-				timer = setTimeout(() => resolve(null), timeoutMs);
-			}),
-		]);
-	} finally {
-		if (timer) {
-			clearTimeout(timer);
-		}
-	}
-}
 
 export const previewCommand = new Command("preview")
 	.description("Start live development with sandbox and file watching")
@@ -167,6 +148,7 @@ export const previewCommand = new Command("preview")
 				});
 
 				const stopSessionBestEffort = async () => {
+					// Best-effort remote cleanup so Ctrl+C does not keep orphaned sessions alive.
 					// Stop server first; ignore failures/timeouts and continue.
 					await withTimeout(
 						api
@@ -197,17 +179,20 @@ export const previewCommand = new Command("preview")
 					console.log();
 					console.log("Stopping development environment...");
 
-					const hardExitTimer = setTimeout(() => {
-						process.exit(0);
-					}, SHUTDOWN_MAX_WAIT_MS);
+					await withTimeout(
+						(async () => {
+							await withTimeout(watcher.close(), SHUTDOWN_STEP_TIMEOUT_MS);
+							await stopSessionBestEffort();
+						})(),
+						SHUTDOWN_MAX_WAIT_MS,
+						{
+							onTimeout: () => {
+								console.log("Shutdown timed out, forcing exit.");
+							},
+						},
+					);
 
-					try {
-						await withTimeout(watcher.close(), SHUTDOWN_STEP_TIMEOUT_MS);
-						await stopSessionBestEffort();
-					} finally {
-						clearTimeout(hardExitTimer);
-						process.exit(0);
-					}
+					process.exit(0);
 				};
 
 				// Handle graceful process termination.
