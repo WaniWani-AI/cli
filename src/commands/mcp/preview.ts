@@ -273,7 +273,7 @@ export const previewCommand = new Command("preview")
 	.option("--no-logs", "Don't stream logs to terminal")
 	.option(
 		"--status-poll-interval-ms <ms>",
-		"Watch-mode server status polling interval in milliseconds (default: 10000)",
+		"Watch-mode server status polling interval in milliseconds (default: 60000)",
 		parseStatusPollIntervalMs,
 		DEFAULT_DEV_SERVER_MONITOR_INTERVAL_MS,
 	)
