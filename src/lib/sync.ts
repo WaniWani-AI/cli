@@ -42,8 +42,6 @@ const DEFAULT_IGNORE_PATTERNS = [
 	".waniwani",
 	".git",
 	"node_modules",
-	".env",
-	".env.*",
 	".DS_Store",
 	"*.log",
 	".cache",
@@ -55,16 +53,27 @@ const DEFAULT_IGNORE_PATTERNS = [
 	".vercel",
 ];
 
+const DEFAULT_ENV_IGNORE_PATTERNS = [".env", ".env.*"];
+
+export interface SyncIgnoreOptions {
+	includeEnvFiles?: boolean;
+}
+
 /**
  * Load ignore patterns from .gitignore and add defaults
  */
 export async function loadIgnorePatterns(
 	projectRoot: string,
+	options: SyncIgnoreOptions = {},
 ): Promise<ReturnType<typeof ignore>> {
+	const { includeEnvFiles = false } = options;
 	const ig = ignore();
 
 	// Add default patterns
 	ig.add(DEFAULT_IGNORE_PATTERNS);
+	if (!includeEnvFiles) {
+		ig.add(DEFAULT_ENV_IGNORE_PATTERNS);
+	}
 
 	// Load .gitignore if it exists
 	const gitignorePath = join(projectRoot, ".gitignore");
@@ -75,6 +84,11 @@ export async function loadIgnorePatterns(
 		} catch {
 			// Ignore read errors
 		}
+	}
+
+	// For local preview hydration, include env files even if they're gitignored.
+	if (includeEnvFiles) {
+		ig.add(["!.env", "!.env.*"]);
 	}
 
 	return ig;
@@ -90,8 +104,11 @@ export interface FileToSync {
  * Collect all files in a directory that should be synced
  * Respects .gitignore and default ignore patterns
  */
-export async function collectFiles(projectRoot: string): Promise<FileToSync[]> {
-	const ig = await loadIgnorePatterns(projectRoot);
+export async function collectFiles(
+	projectRoot: string,
+	options: SyncIgnoreOptions = {},
+): Promise<FileToSync[]> {
+	const ig = await loadIgnorePatterns(projectRoot, options);
 	const files: FileToSync[] = [];
 
 	async function walk(dir: string) {
