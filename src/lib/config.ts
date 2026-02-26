@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -9,6 +9,8 @@ export const CONFIG_FILE_NAME = "settings.json";
 const LOCAL_DIR = join(process.cwd(), LOCAL_CONFIG_DIR);
 const LOCAL_FILE = join(LOCAL_DIR, CONFIG_FILE_NAME);
 const DEFAULT_API_URL = "https://app.waniwani.ai";
+const CONFIG_DIR_MODE = 0o700;
+const CONFIG_FILE_MODE = 0o600;
 
 const ConfigSchema = z.object({
 	// Settings
@@ -34,6 +36,11 @@ class Config {
 		this.file = LOCAL_FILE;
 	}
 
+	private async setSecurePermissions(): Promise<void> {
+		await chmod(this.dir, CONFIG_DIR_MODE);
+		await chmod(this.file, CONFIG_FILE_MODE);
+	}
+
 	private async load(): Promise<ConfigData> {
 		if (!this.cache) {
 			try {
@@ -49,8 +56,9 @@ class Config {
 
 	private async save(data: ConfigData): Promise<void> {
 		this.cache = data;
-		await mkdir(this.dir, { recursive: true });
+		await mkdir(this.dir, { recursive: true, mode: CONFIG_DIR_MODE });
 		await writeFile(this.file, JSON.stringify(data, null, "\t"));
+		await this.setSecurePermissions();
 	}
 
 	/**
@@ -58,7 +66,8 @@ class Config {
 	 * Used by login to create config before saving tokens.
 	 */
 	async ensureConfigDir(): Promise<void> {
-		await mkdir(this.dir, { recursive: true });
+		await mkdir(this.dir, { recursive: true, mode: CONFIG_DIR_MODE });
+		await chmod(this.dir, CONFIG_DIR_MODE);
 	}
 
 	/**
@@ -160,10 +169,12 @@ export async function initConfigAt(
 	const configDir = join(dir, LOCAL_CONFIG_DIR);
 	const configPath = join(configDir, CONFIG_FILE_NAME);
 
-	await mkdir(configDir, { recursive: true });
+	await mkdir(configDir, { recursive: true, mode: CONFIG_DIR_MODE });
 
 	const data = ConfigSchema.parse(overrides);
 	await writeFile(configPath, JSON.stringify(data, null, "\t"), "utf-8");
+	await chmod(configDir, CONFIG_DIR_MODE);
+	await chmod(configPath, CONFIG_FILE_MODE);
 
 	return { path: configPath, config: data };
 }
