@@ -5,11 +5,15 @@ import { AuthError, CLIError } from "./errors.js";
 export interface ApiResponse<T> {
 	success: boolean;
 	data?: T;
-	error?: {
-		code: string;
-		message: string;
-		details?: Record<string, unknown>;
-	};
+	error?:
+		| string
+		| {
+				code?: string;
+				message?: string;
+				details?: Record<string, unknown>;
+		  };
+	code?: string;
+	message?: string;
 }
 
 export class ApiError extends CLIError {
@@ -85,23 +89,32 @@ async function request<T>(
 	}
 
 	if (!response.ok || data.error) {
+		const errorObject =
+			typeof data.error === "object" && data.error !== null
+				? data.error
+				: undefined;
+		const errorString = typeof data.error === "string" ? data.error : undefined;
+
 		// Try to extract error message from various possible response formats
 		const errorMessage =
-			data.error?.message ||
-			(data as unknown as { message?: string }).message ||
-			(data as unknown as { error?: string }).error ||
+			errorObject?.message ||
+			data.message ||
+			errorString ||
 			rawBody ||
 			`Request failed with status ${response.status}`;
 
 		const errorCode =
-			data.error?.code ||
-			(data as unknown as { code?: string }).code ||
+			errorString ||
+			errorObject?.code ||
+			data.code ||
+			data.message ||
+			errorObject?.message ||
 			"API_ERROR";
 
 		const errorDetails = {
-			...data.error?.details,
+			...errorObject?.details,
 			statusText: response.statusText,
-			...(data.error ? {} : { rawResponse: data }),
+			...(errorObject ? {} : { rawResponse: data }),
 		};
 
 		const error = {

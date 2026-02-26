@@ -243,8 +243,8 @@ export type ServerStatusResponse = z.infer<typeof ServerStatusResponseSchema>;
 
 // Server start response
 export const ServerStartResponseSchema = z.object({
-	cmdId: z.string(),
-	previewUrl: z.string(),
+	cmdId: z.string().optional(),
+	previewUrl: z.string().optional(),
 });
 export type ServerStartResponse = z.infer<typeof ServerStartResponseSchema>;
 
