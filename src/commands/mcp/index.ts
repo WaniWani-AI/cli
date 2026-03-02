@@ -6,7 +6,6 @@ import { fileCommand } from "./file/index.js";
 import { listCommand } from "./list.js";
 import { logsCommand } from "./logs.js";
 import { previewCommand } from "./preview.js";
-import { publishCommand } from "./publish.js";
 import { runCommandCommand } from "./run-command.js";
 import { statusCommand } from "./status.js";
 import { stopCommand } from "./stop.js";
@@ -24,7 +23,6 @@ export const mcpCommand = new Command("mcp")
 	.addCommand(stopCommand)
 	.addCommand(logsCommand)
 	.addCommand(syncCommand)
-	.addCommand(publishCommand)
 	.addCommand(deleteCommand)
 	.addCommand(fileCommand)
 	.addCommand(runCommandCommand);

@@ -1,5 +1,5 @@
 ---
-name: waniwani
+name: waniwani-cli
 description: Create and manage MCP servers with local development workflow. Use when the user needs to develop MCP servers, manage sandbox files, or deploy to GitHub and Vercel.
 allowed-tools: Bash(waniwani:*), Write, Read, Glob
 ---
@@ -9,10 +9,10 @@ allowed-tools: Bash(waniwani:*), Write, Read, Glob
 ## Quick Start
 
 ```bash
-waniwani login                # Authenticate with WaniWani
-waniwani mcp create my-mcp      # Create project and pull template files
+waniwani login                  # Authenticate with WaniWani
+waniwani mcp create my-mcp      # Create project and clone locally
 cd my-mcp
-waniwani mcp preview          # Start sandbox, sync files, start server, watch for changes
+waniwani mcp preview            # Start sandbox, sync files, start server, watch for changes
 ```
 
 ## Limitations
@@ -23,10 +23,10 @@ waniwani mcp preview          # Start sandbox, sync files, start server, watch f
 ## Core Workflow
 
 1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani mcp create <name>` (creates project and pulls template files)
-3. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher all in one)
+2. **Initialize**: `waniwani mcp create <name>` (creates GitHub repo + clones locally)
+3. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher)
 4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
-5. **Publish**: `waniwani mcp publish` to push files for production
+5. **Deploy**: `git push origin main` (Vercel auto-deploys via webhook)
 
 ## Commands
 
@@ -46,8 +46,9 @@ waniwani mcp clone <name>         # Clone an existing MCP to a local directory
 waniwani mcp clone <name> <dir>   # Clone into a specific directory
 ```
 
-`mcp create` creates a new MCP on WaniWani and clones it locally.
-`mcp clone` clones an existing MCP by name (useful for pulling to a new machine or directory).
+`mcp create` creates a new MCP on WaniWani and clones it locally. A git credential helper is configured automatically so `git push` works without extra auth setup.
+
+`mcp clone` clones an existing MCP by name (useful for pulling to a new machine or directory). Also configures the credential helper.
 
 ### Development
 
@@ -85,12 +86,13 @@ waniwani mcp logs --follow      # Same as -f
 
 **Typical workflow:**
 ```bash
-waniwani mcp create my-server     # Create project and pull template
+waniwani mcp create my-server     # Create project and clone locally
 cd my-server
-waniwani mcp preview            # Start sandbox + server + file watcher
+waniwani mcp preview              # Start sandbox + server + file watcher
 # ... edit files locally (auto-synced) ...
 # Ctrl+C to stop
-waniwani mcp publish            # Publish to production
+git add . && git commit -m "Add new tool"
+git push origin main              # Deploy to production
 ```
 
 ### Testing with MCP Inspector
@@ -106,18 +108,20 @@ The inspector provides a web UI to:
 - Call tools with custom inputs
 - View tool responses
 
-### Publish & Sync
+### Deploy & Sync
+
+Deployment uses standard git. The credential helper (configured automatically during `mcp create`/`mcp clone`) provides GitHub auth transparently:
 
 ```bash
-waniwani mcp publish -m "message"    # Push local files with commit message
-waniwani mcp publish                 # Prompts for commit message interactively
-waniwani mcp sync                    # Pull latest files to local project
+git add .
+git commit -m "Add new tool"
+git push origin main              # Vercel auto-deploys via webhook
 ```
 
-The `publish` command:
-1. Collects all local files (respects .gitignore)
-2. Pushes them with the provided commit message
-3. Deployment starts automatically
+To pull latest files from the remote:
+```bash
+waniwani mcp sync                 # Pull latest files to local project
+```
 
 ### Organization Management
 
@@ -153,6 +157,7 @@ All config is stored locally in `.waniwani/settings.json` (no global config).
 
 - `waniwani login` creates `.waniwani/` in current directory if needed
 - `waniwani mcp create` copies parent `.waniwani/` to new project (including auth tokens)
+- Git credential helper is configured in `.git/config` for transparent `git push`
 
 ## Local Project Structure
 
@@ -207,5 +212,6 @@ waniwani mcp preview    # Restart with fresh sync
 ### Changes not deployed to production
 Make sure you've pushed your changes to GitHub:
 ```bash
-waniwani mcp publish
+git add . && git commit -m "Update"
+git push origin main
 ```

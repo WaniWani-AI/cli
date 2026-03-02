@@ -10,6 +10,7 @@ import {
 	initConfigAt,
 	LOCAL_CONFIG_DIR,
 } from "../../lib/config.js";
+import { setupGitCredentialHelper } from "../../lib/credential-helper-setup.js";
 import { CLIError, handleError, McpError } from "../../lib/errors.js";
 import {
 	getGitAuthContext,
@@ -144,6 +145,9 @@ export const cloneCommand = new Command("clone")
 					mcpId: mcp.id,
 				});
 
+				// Set up git credential helper for transparent git push
+				setupGitCredentialHelper(projectDir);
+
 				spinner.succeed("Repository cloned");
 
 				if (json) {
@@ -162,6 +166,7 @@ export const cloneCommand = new Command("clone")
 					console.log("Next steps:");
 					console.log(`  cd ${dirName}`);
 					console.log("  waniwani mcp preview      # Start developing");
+					console.log("  git push origin main      # Deploy");
 				}
 			} catch (error) {
 				handleError(error, json);
