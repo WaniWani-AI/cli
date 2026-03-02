@@ -4,6 +4,7 @@ import type { Socket } from "node:net";
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
+import { api } from "../lib/api.js";
 import { auth } from "../lib/auth.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
@@ -11,6 +12,7 @@ import { formatOutput, formatSuccess } from "../lib/output.js";
 import type {
 	OAuthClientRegistrationResponse,
 	OAuthTokenResponse,
+	OrgListResponse,
 } from "../types/index.js";
 
 // ASCII art logo for WaniWani
@@ -491,11 +493,32 @@ export const loginCommand = new Command("login")
 
 			spinner.succeed("Logged in successfully!");
 
+			// Fetch current org info (don't block login on failure)
+			let orgName: string | null = null;
+			try {
+				const { orgs, activeOrgId } =
+					await api.get<OrgListResponse>("/api/oauth/orgs");
+				if (activeOrgId) {
+					const activeOrg = orgs.find((o) => o.id === activeOrgId);
+					if (activeOrg) {
+						orgName = activeOrg.name;
+					}
+				}
+			} catch {
+				// Silently ignore - org info is optional
+			}
+
 			if (json) {
-				formatOutput({ success: true, loggedIn: true }, true);
+				formatOutput(
+					{ success: true, loggedIn: true, ...(orgName && { org: orgName }) },
+					true,
+				);
 			} else {
 				console.log();
 				formatSuccess("You're now logged in to WaniWani!", false);
+				if (orgName) {
+					console.log(`  Organization: ${chalk.cyan(orgName)}`);
+				}
 				console.log();
 				console.log("Get started:");
 				console.log(
