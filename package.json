@@ -17,7 +17,7 @@
   ],
   "waniwani": {
     "apiClientRepo": "WaniWani-AI/app",
-    "apiClientRef": "deploy/prod",
+    "apiClientRef": "main",
     "apiClientPath": "src/generated/cli-api-client.ts"
   },
   "scripts": {
