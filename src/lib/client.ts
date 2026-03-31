@@ -37,14 +37,19 @@ export async function getClient(): Promise<WaniWaniApiClient> {
 
 		if (response.status === 401) {
 			const refreshed = await auth.tryRefreshToken();
-			if (refreshed) {
-				const newToken = await auth.getAccessToken();
-				headers.set("Authorization", `Bearer ${newToken}`);
-				return fetch(input, { ...init, headers });
+			if (!refreshed) {
+				throw new AuthError(
+					"Session expired. Run 'waniwani login' to re-authenticate.",
+				);
 			}
-			throw new AuthError(
-				"Session expired. Run 'waniwani login' to re-authenticate.",
-			);
+			const newToken = await auth.getAccessToken();
+			if (!newToken) {
+				throw new AuthError(
+					"Session expired. Run 'waniwani login' to re-authenticate.",
+				);
+			}
+			headers.set("Authorization", `Bearer ${newToken}`);
+			return fetch(input, { ...init, headers });
 		}
 
 		return response;
