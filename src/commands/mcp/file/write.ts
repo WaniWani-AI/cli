@@ -1,11 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../../lib/api.js";
+import { getClient } from "../../../lib/client.js";
 import { CLIError, handleError } from "../../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../../lib/utils.js";
-import type { WriteFilesResponse } from "../../../types/index.js";
 
 export const writeCommand = new Command("write")
 	.description("Write a file to the MCP sandbox")
@@ -48,12 +47,10 @@ export const writeCommand = new Command("write")
 
 			const spinner = ora(`Writing ${path}...`).start();
 
-			const result = await api.post<WriteFilesResponse>(
-				`/api/mcp/sessions/${sessionId}/files`,
-				{
-					files: [{ path, content, encoding }],
-				},
-			);
+			const client = await getClient();
+			const result = await client.writeFiles(sessionId, [
+				{ path, content, encoding },
+			]);
 
 			spinner.succeed(`Wrote ${path}`);
 

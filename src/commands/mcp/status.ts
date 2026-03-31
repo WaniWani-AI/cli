@@ -1,11 +1,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import type { ServerStatusResponse } from "../../generated/api-client.js";
+import { getClient } from "../../lib/client.js";
 import { handleError } from "../../lib/errors.js";
 import { formatList, formatOutput } from "../../lib/output.js";
 import { requireMcpId } from "../../lib/utils.js";
-import type { McpRepository, ServerStatusResponse } from "../../types/index.js";
 
 export const statusCommand = new Command("status")
 	.description("Show current MCP status")
@@ -19,18 +19,14 @@ export const statusCommand = new Command("status")
 
 			const spinner = ora("Fetching MCP status...").start();
 
-			const result = await api.get<McpRepository>(
-				`/api/mcp/repositories/${mcpId}`,
-			);
+			const client = await getClient();
+			const result = await client.getRepository(mcpId);
 
 			// Fetch server status if sandbox is active
 			let serverStatus: ServerStatusResponse | null = null;
 			if (result.activeSandbox) {
-				serverStatus = await api
-					.post<ServerStatusResponse>(
-						`/api/mcp/sessions/${result.activeSandbox.id}/server`,
-						{ action: "status" },
-					)
+				serverStatus = await client
+					.getServerStatus(result.activeSandbox.id)
 					.catch(() => null);
 			}
 

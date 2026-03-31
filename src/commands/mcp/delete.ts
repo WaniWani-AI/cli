@@ -2,12 +2,11 @@ import { confirm } from "@inquirer/prompts";
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
 import { requireMcpId } from "../../lib/utils.js";
-import type { McpRepository } from "../../types/index.js";
 
 export const deleteCommand = new Command("delete")
 	.description("Delete the MCP (includes all associated resources)")
@@ -19,11 +18,10 @@ export const deleteCommand = new Command("delete")
 
 		try {
 			const mcpId = await requireMcpId(options.mcpId);
+			const client = await getClient();
 
 			// Get MCP details for confirmation
-			const mcp = await api.get<McpRepository>(
-				`/api/mcp/repositories/${mcpId}`,
-			);
+			const mcp = await client.getRepository(mcpId);
 
 			// Require confirmation unless --force
 			if (!options.force && !json) {
@@ -47,7 +45,7 @@ export const deleteCommand = new Command("delete")
 			}
 
 			const spinner = ora("Deleting MCP...").start();
-			await api.delete(`/api/mcp/repositories/${mcpId}`);
+			await client.deleteRepository(mcpId);
 			spinner.succeed("MCP deleted");
 
 			// Clear active MCP and session if it was the one we deleted

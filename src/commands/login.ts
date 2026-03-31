@@ -4,15 +4,14 @@ import type { Socket } from "node:net";
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../lib/api.js";
 import { auth } from "../lib/auth.js";
+import { getClient, resetClient } from "../lib/client.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 import type {
 	OAuthClientRegistrationResponse,
 	OAuthTokenResponse,
-	OrgListResponse,
 } from "../types/index.js";
 
 // ASCII art logo for WaniWani
@@ -496,8 +495,9 @@ export const loginCommand = new Command("login")
 			// Fetch current org info (don't block login on failure)
 			let orgName: string | null = null;
 			try {
-				const { orgs, activeOrgId } =
-					await api.get<OrgListResponse>("/api/oauth/orgs");
+				resetClient(); // clear cached client so it picks up new tokens
+				const client = await getClient();
+				const { orgs, activeOrgId } = await client.listOrgs();
 				if (activeOrgId) {
 					const activeOrg = orgs.find((o) => o.id === activeOrgId);
 					if (activeOrg) {

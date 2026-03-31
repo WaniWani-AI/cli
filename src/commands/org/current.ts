@@ -1,9 +1,8 @@
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { handleError } from "../../lib/errors.js";
 import { formatList, formatOutput } from "../../lib/output.js";
-import type { Org, OrgListResponse } from "../../types/index.js";
 
 export const currentCommand = new Command("current")
 	.description("Show the current active organization")
@@ -14,7 +13,8 @@ export const currentCommand = new Command("current")
 		try {
 			const spinner = ora("Fetching current organization...").start();
 
-			const result = await api.get<OrgListResponse>("/api/oauth/orgs");
+			const client = await getClient();
+			const result = await client.listOrgs();
 
 			spinner.stop();
 
@@ -32,7 +32,7 @@ export const currentCommand = new Command("current")
 				return;
 			}
 
-			const activeOrg = orgs.find((o: Org) => o.id === activeOrgId);
+			const activeOrg = orgs.find((o) => o.id === activeOrgId);
 
 			if (!activeOrg) {
 				if (json) {

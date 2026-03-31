@@ -2,8 +2,7 @@ import { execFileSync, type StdioOptions } from "node:child_process";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CloneUrlResponse, GitAuthResponse } from "../types/index.js";
-import { ApiError, api } from "./api.js";
+import { getClient, WaniWaniApiError } from "./client.js";
 
 export interface GitHttpCredentials {
 	username: string;
@@ -74,10 +73,10 @@ function parseCloneUrlAuth(cloneUrl: string): GitAuthContext {
 export async function getGitAuthContext(
 	mcpId: string,
 ): Promise<GitAuthContext> {
+	const client = await getClient();
+
 	try {
-		const gitAuth = await api.get<GitAuthResponse>(
-			`/api/mcp/repositories/${mcpId}/git-auth`,
-		);
+		const gitAuth = await client.getGitAuth(mcpId);
 		const parsedRemote = new URL(gitAuth.remoteUrl);
 		parsedRemote.username = gitAuth.username;
 		parsedRemote.password = gitAuth.token;
@@ -94,13 +93,11 @@ export async function getGitAuthContext(
 		};
 	} catch (error) {
 		// If the new endpoint isn't available yet, use legacy clone-url.
-		if (error instanceof ApiError && error.statusCode !== 404) {
+		if (error instanceof WaniWaniApiError && error.statusCode !== 404) {
 			throw error;
 		}
 
-		const { cloneUrl } = await api.get<CloneUrlResponse>(
-			`/api/mcp/repositories/${mcpId}/clone-url`,
-		);
+		const { cloneUrl } = await client.getCloneUrl(mcpId);
 		return parseCloneUrlAuth(cloneUrl);
 	}
 }

@@ -1,11 +1,10 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../../lib/api.js";
+import { getClient } from "../../../lib/client.js";
 import { handleError } from "../../../lib/errors.js";
 import { formatOutput, formatTable } from "../../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../../lib/utils.js";
-import type { ListFilesResponse } from "../../../types/index.js";
 
 export const listCommand = new Command("list")
 	.description("List files in the MCP sandbox")
@@ -21,9 +20,8 @@ export const listCommand = new Command("list")
 
 			const spinner = ora(`Listing ${path}...`).start();
 
-			const result = await api.get<ListFilesResponse>(
-				`/api/mcp/sessions/${sessionId}/files/list?path=${encodeURIComponent(path)}`,
-			);
+			const client = await getClient();
+			const result = await client.listFiles(sessionId, path);
 
 			spinner.stop();
 

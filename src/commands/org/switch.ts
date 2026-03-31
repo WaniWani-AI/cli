@@ -1,14 +1,9 @@
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { CLIError, handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type {
-	Org,
-	OrgListResponse,
-	OrgSwitchResponse,
-} from "../../types/index.js";
 
 export const switchCommand = new Command("switch")
 	.description("Switch to a different organization")
@@ -21,10 +16,11 @@ export const switchCommand = new Command("switch")
 			const spinner = ora("Fetching organizations...").start();
 
 			// First fetch orgs to find the org ID
-			const { orgs } = await api.get<OrgListResponse>("/api/oauth/orgs");
+			const client = await getClient();
+			const { orgs } = await client.listOrgs();
 
 			// Find org by name or slug
-			const org = orgs.find((o: Org) => o.name === name || o.slug === name);
+			const org = orgs.find((o) => o.name === name || o.slug === name);
 
 			if (!org) {
 				spinner.stop();
@@ -37,9 +33,7 @@ export const switchCommand = new Command("switch")
 			spinner.text = "Switching organization...";
 
 			// Switch to the org
-			await api.post<OrgSwitchResponse>("/api/oauth/orgs/switch", {
-				orgId: org.id,
-			});
+			await client.switchOrg(org.id);
 
 			spinner.succeed("Organization switched");
 

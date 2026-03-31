@@ -1,11 +1,10 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../lib/utils.js";
-import type { RunCommandResponse } from "../../types/index.js";
 
 export const runCommandCommand = new Command("run-command")
 	.description("Run a command in the MCP sandbox")
@@ -31,15 +30,13 @@ export const runCommandCommand = new Command("run-command")
 
 			const spinner = ora(`Running: ${cmd} ${args.join(" ")}`.trim()).start();
 
-			const result = await api.post<RunCommandResponse>(
-				`/api/mcp/sessions/${sessionId}/commands`,
-				{
-					command: cmd,
-					args: args.length > 0 ? args : undefined,
-					cwd: options.cwd,
-					timeout,
-				},
-			);
+			const client = await getClient();
+			const result = await client.runCommand(sessionId, {
+				command: cmd,
+				args: args.length > 0 ? args : undefined,
+				cwd: options.cwd,
+				timeout,
+			});
 
 			spinner.stop();
 

@@ -1,14 +1,10 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatTable } from "../../lib/output.js";
-import type {
-	McpRepository,
-	McpRepositoryListResponse,
-} from "../../types/index.js";
 
 export const listCommand = new Command("list")
 	.description("List all MCPs in your organization")
@@ -19,9 +15,8 @@ export const listCommand = new Command("list")
 		try {
 			const spinner = ora("Fetching MCPs...").start();
 
-			const mcps = await api.get<McpRepositoryListResponse>(
-				"/api/mcp/repositories",
-			);
+			const client = await getClient();
+			const mcps = await client.listRepositories();
 
 			spinner.stop();
 
@@ -30,7 +25,7 @@ export const listCommand = new Command("list")
 			if (json) {
 				formatOutput(
 					{
-						mcps: mcps.map((m: McpRepository) => ({
+						mcps: mcps.map((m) => ({
 							...m,
 							isActive: m.id === activeMcpId,
 						})),
@@ -47,7 +42,7 @@ export const listCommand = new Command("list")
 
 				console.log(chalk.bold("\nMCPs:\n"));
 
-				const rows = mcps.map((m: McpRepository) => {
+				const rows = mcps.map((m) => {
 					const isActive = m.id === activeMcpId;
 					const deployStatus = m.deployedAt
 						? chalk.green("Deployed")

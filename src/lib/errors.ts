@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { ZodError } from "zod";
+import { WaniWaniApiError } from "../generated/api-client.js";
 
 export class CLIError extends Error {
 	constructor(
@@ -48,6 +49,8 @@ export function handleError(error: unknown, json: boolean): void {
 			.map((e) => `${e.path.join(".")}: ${e.message}`)
 			.join(", ");
 		outputError("VALIDATION_ERROR", `Invalid input: ${message}`, json);
+	} else if (error instanceof WaniWaniApiError) {
+		outputError(error.code, error.message, json, error.details);
 	} else if (error instanceof CLIError) {
 		outputError(error.code, error.message, json, error.details);
 	} else if (error instanceof Error) {

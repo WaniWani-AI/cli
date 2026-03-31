@@ -2,8 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import ignore from "ignore";
-import type { PullFilesResponse } from "../types/index.js";
-import { api } from "./api.js";
+import { getClient } from "./client.js";
 import { detectBinary, isBinaryPath } from "./utils.js";
 
 const PROJECT_DIR = ".waniwani";
@@ -157,9 +156,8 @@ export async function pullFilesFromGithub(
 	targetDir: string,
 ): Promise<{ count: number; files: string[] }> {
 	// Fetch all files from GitHub in one request
-	const result = await api.get<PullFilesResponse>(
-		`/api/mcp/repositories/${mcpId}/files`,
-	);
+	const client = await getClient();
+	const result = await client.pullFiles(mcpId);
 
 	const writtenFiles: string[] = [];
 

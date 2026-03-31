@@ -1,13 +1,9 @@
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { handleError, McpError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type {
-	McpRepository,
-	McpRepositoryListResponse,
-} from "../../types/index.js";
 
 export const useCommand = new Command("use")
 	.description("Select an MCP to use for subsequent commands")
@@ -20,14 +16,13 @@ export const useCommand = new Command("use")
 			const spinner = ora("Fetching MCPs...").start();
 
 			// Fetch all MCPs
-			const mcps = await api.get<McpRepositoryListResponse>(
-				"/api/mcp/repositories",
-			);
+			const client = await getClient();
+			const mcps = await client.listRepositories();
 
 			spinner.stop();
 
 			// Find MCP by name
-			const mcp = mcps.find((m: McpRepository) => m.name === name);
+			const mcp = mcps.find((m) => m.name === name);
 
 			if (!mcp) {
 				throw new McpError(

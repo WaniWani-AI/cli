@@ -1,11 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../../lib/api.js";
+import { getClient } from "../../../lib/client.js";
 import { handleError, McpError } from "../../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../../lib/utils.js";
-import type { ReadFileResponse } from "../../../types/index.js";
 
 export const readCommand = new Command("read")
 	.description("Read a file from the MCP sandbox")
@@ -24,9 +23,8 @@ export const readCommand = new Command("read")
 			const encoding = options.base64 ? "base64" : "utf8";
 			const spinner = ora(`Reading ${path}...`).start();
 
-			const result = await api.get<ReadFileResponse>(
-				`/api/mcp/sessions/${sessionId}/files?path=${encodeURIComponent(path)}&encoding=${encoding}`,
-			);
+			const client = await getClient();
+			const result = await client.readFile(sessionId, path, encoding);
 
 			spinner.stop();
 

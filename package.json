@@ -15,7 +15,14 @@
   "files": [
     "dist"
   ],
+  "waniwani": {
+    "apiClientRepo": "WaniWani-AI/app",
+    "apiClientRef": "deploy/prod",
+    "apiClientPath": "src/generated/cli-api-client.ts"
+  },
   "scripts": {
+    "fetch-api-client": "bun scripts/fetch-api-client.ts",
+    "check-api-client": "bun scripts/check-api-client.ts",
     "build": "rm -rf dist && bun run typecheck && bun run lint && tsup",
     "dev": "tsx --watch src/index.ts",
     "typecheck": "tsc --noEmit",

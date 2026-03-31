@@ -1,12 +1,13 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
 import { auth } from "../../lib/auth.js";
+import { getClient } from "../../lib/client.js";
+import { config } from "../../lib/config.js";
 import { AuthError, handleError, McpError } from "../../lib/errors.js";
 import { formatOutput } from "../../lib/output.js";
 import { requireMcpId, requireSessionId } from "../../lib/utils.js";
-import type { LogEvent, ServerStatusResponse } from "../../types/index.js";
+import type { LogEvent } from "../../types/index.js";
 
 export const logsCommand = new Command("logs")
 	.description("Stream logs from the MCP server")
@@ -46,10 +47,8 @@ export const logsCommand = new Command("logs")
 			// If no cmdId provided, get it from server status
 			if (!cmdId) {
 				const spinner = ora("Getting server status...").start();
-				const status = await api.post<ServerStatusResponse>(
-					`/api/mcp/sessions/${sessionId}/server`,
-					{ action: "status" },
-				);
+				const client = await getClient();
+				const status = await client.getServerStatus(sessionId);
 				spinner.stop();
 
 				if (!status.running || !status.cmdId) {
@@ -60,7 +59,7 @@ export const logsCommand = new Command("logs")
 				cmdId = status.cmdId;
 			}
 
-			const baseUrl = await api.getBaseUrl();
+			const baseUrl = await config.getApiUrl();
 			const streamParam = options.follow ? "?stream=true" : "";
 			const url = `${baseUrl}/api/mcp/sessions/${sessionId}/commands/${cmdId}${streamParam}`;
 

@@ -3,8 +3,16 @@ import { join } from "node:path";
 import { watch } from "chokidar";
 import { Command, InvalidArgumentError } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import type {
+	CommandOutputResponse,
+	McpSandbox,
+	RunCommandResponse,
+	SandboxStartResponse,
+	ServerStatusResponse,
+	WaniWaniApiClient,
+} from "../../generated/api-client.js";
 import { withTimeout } from "../../lib/async.js";
+import { getClient, WaniWaniApiError } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { CLIError, handleError } from "../../lib/errors.js";
 import { formatSuccess } from "../../lib/output.js";
@@ -14,14 +22,6 @@ import {
 	findProjectRoot,
 	loadIgnorePatterns,
 } from "../../lib/sync.js";
-import type {
-	McpSandbox,
-	RunCommandResponse,
-	SandboxStartResponse,
-	ServerStartResponse,
-	ServerStatusResponse,
-	WriteFilesResponse,
-} from "../../types/index.js";
 
 const SHUTDOWN_MAX_WAIT_MS = 3000;
 const SHUTDOWN_STEP_TIMEOUT_MS = 1200;
@@ -33,19 +33,6 @@ type SessionInfo = {
 	id: string;
 	previewUrl: string;
 	sandboxId?: string;
-};
-
-type CommandStatusResponse = {
-	cmdId: string;
-	exitCode: number | null;
-	running: boolean;
-};
-
-type CommandOutputResponse = {
-	cmdId: string;
-	exitCode: number | null;
-	stdout: string;
-	stderr: string;
 };
 
 type PackageManager = "bun" | "pnpm" | "yarn" | "npm-ci" | "npm";
@@ -185,18 +172,23 @@ function isServerNotRunningError(error: unknown): boolean {
 }
 
 function getNormalizedError(error: unknown): string {
-	if (!(error instanceof CLIError)) return "";
-	const details = JSON.stringify(error.details ?? {}).toLowerCase();
-	return `${error.code} ${error.message} ${details}`.toLowerCase();
+	if (error instanceof CLIError) {
+		const details = JSON.stringify(error.details ?? {}).toLowerCase();
+		return `${error.code} ${error.message} ${details}`.toLowerCase();
+	}
+	if (error instanceof WaniWaniApiError) {
+		const details = JSON.stringify(error.details ?? {}).toLowerCase();
+		return `${error.code} ${error.message} ${details}`.toLowerCase();
+	}
+	return "";
 }
 
 async function getServerStatusOrNull(
+	client: WaniWaniApiClient,
 	sessionId: string,
 ): Promise<ServerStatusResponse | null> {
 	try {
-		return await api.get<ServerStatusResponse>(
-			`/api/mcp/sessions/${sessionId}/server`,
-		);
+		return await client.getServerStatus(sessionId);
 	} catch (error) {
 		if (isServerNotRunningError(error)) {
 			return null;
@@ -235,28 +227,28 @@ function parseStatusPollIntervalMs(value: string): number {
 }
 
 async function getCommandOutputOrNull(
+	client: WaniWaniApiClient,
 	sessionId: string,
 	cmdId: string,
 ): Promise<CommandOutputResponse | null> {
 	try {
-		return await api.get<CommandOutputResponse>(
-			`/api/mcp/sessions/${sessionId}/commands/${cmdId}`,
-		);
+		return await client.getCommandOutput(sessionId, cmdId);
 	} catch {
 		return null;
 	}
 }
 
-async function cleanupPreviewSession(sessionId: string): Promise<void> {
+async function cleanupPreviewSession(
+	client: WaniWaniApiClient,
+	sessionId: string,
+): Promise<void> {
 	await withTimeout(
-		api
-			.post(`/api/mcp/sessions/${sessionId}/server`, { action: "stop" })
-			.catch(() => undefined),
+		client.stopServer(sessionId).catch(() => undefined),
 		SHUTDOWN_STEP_TIMEOUT_MS,
 	);
 
 	await withTimeout(
-		api.delete(`/api/mcp/sessions/${sessionId}`).catch(() => undefined),
+		client.deleteSession(sessionId).catch(() => undefined),
 		SHUTDOWN_STEP_TIMEOUT_MS,
 	);
 
@@ -304,6 +296,7 @@ export const previewCommand = new Command("preview")
 				);
 			}
 
+			const client = await getClient();
 			const spinner = ora("Starting development environment...").start();
 
 			// Step 1: Create or get session (this also starts the sandbox)
@@ -312,19 +305,14 @@ export const previewCommand = new Command("preview")
 			let previewUrl: string;
 			let sandboxId: string | undefined;
 			try {
-				const sessionResponse = await api.post<SandboxStartResponse>(
-					`/api/mcp/repositories/${mcpId}/session`,
-					{},
-				);
+				const sessionResponse = await client.createSession(mcpId);
 				const sessionInfo = resolveSessionInfo(sessionResponse);
 				sessionId = sessionInfo.id;
 				previewUrl = sessionInfo.previewUrl;
 				sandboxId = sessionInfo.sandboxId;
 			} catch {
 				// Session might already exist, try to get it
-				const existing = await api.get<McpSandbox | null>(
-					`/api/mcp/repositories/${mcpId}/session`,
-				);
+				const existing = await client.getSession(mcpId);
 				if (!existing) {
 					throw new CLIError("Failed to start session", "SESSION_ERROR");
 				}
@@ -341,24 +329,18 @@ export const previewCommand = new Command("preview")
 			spinner.text = "Syncing files to sandbox...";
 			const files = await collectFiles(projectRoot, { includeEnvFiles: true });
 			if (files.length > 0) {
-				await api.post<WriteFilesResponse>(
-					`/api/mcp/sessions/${sessionId}/files`,
-					{ files },
-				);
+				await client.writeFiles(sessionId, files);
 			}
 
 			// Step 3: Install dependencies to match local state
 			const packageManager = detectPackageManager(projectRoot);
 			let installCommand = getInstallCommand(packageManager);
 			spinner.text = `Installing dependencies (${installCommand.command})...`;
-			let installResult = await api.post<RunCommandResponse>(
-				`/api/mcp/sessions/${sessionId}/commands`,
-				{
-					command: installCommand.command,
-					args: installCommand.args,
-					timeout: MAX_INSTALL_TIMEOUT_MS,
-				},
-			);
+			let installResult = await client.runCommand(sessionId, {
+				command: installCommand.command,
+				args: installCommand.args,
+				timeout: MAX_INSTALL_TIMEOUT_MS,
+			});
 
 			if (installResult.exitCode !== 0) {
 				const nonFrozenInstallCommand =
@@ -369,14 +351,11 @@ export const previewCommand = new Command("preview")
 				) {
 					installCommand = nonFrozenInstallCommand;
 					spinner.text = `Retrying install without frozen lockfile (${installCommand.command})...`;
-					installResult = await api.post<RunCommandResponse>(
-						`/api/mcp/sessions/${sessionId}/commands`,
-						{
-							command: installCommand.command,
-							args: installCommand.args,
-							timeout: MAX_INSTALL_TIMEOUT_MS,
-						},
-					);
+					installResult = await client.runCommand(sessionId, {
+						command: installCommand.command,
+						args: installCommand.args,
+						timeout: MAX_INSTALL_TIMEOUT_MS,
+					});
 				}
 			}
 
@@ -397,7 +376,7 @@ export const previewCommand = new Command("preview")
 			let serverCmdId: string | undefined;
 			let didStartServer = false;
 
-			const serverStatus = await getServerStatusOrNull(sessionId);
+			const serverStatus = await getServerStatusOrNull(client, sessionId);
 			const serverStatusPreviewUrl = serverStatus?.previewUrl;
 			if (serverStatusPreviewUrl) {
 				previewUrl = serverStatusPreviewUrl;
@@ -409,13 +388,7 @@ export const previewCommand = new Command("preview")
 			} else {
 				spinner.text = `Starting server (${devCommand})...`;
 				try {
-					const serverStart = await api.post<ServerStartResponse>(
-						`/api/mcp/sessions/${sessionId}/server`,
-						{
-							action: "start",
-							command: devCommand,
-						},
-					);
+					const serverStart = await client.startServer(sessionId, devCommand);
 					const serverStartPreviewUrl = serverStart.previewUrl;
 					if (serverStartPreviewUrl) {
 						previewUrl = serverStartPreviewUrl;
@@ -427,7 +400,10 @@ export const previewCommand = new Command("preview")
 						throw error;
 					}
 
-					const refreshedStatus = await getServerStatusOrNull(sessionId);
+					const refreshedStatus = await getServerStatusOrNull(
+						client,
+						sessionId,
+					);
 					if (!refreshedStatus?.running) {
 						throw error;
 					}
@@ -442,7 +418,7 @@ export const previewCommand = new Command("preview")
 			}
 
 			if (didStartServer && !serverCmdId) {
-				await cleanupPreviewSession(sessionId);
+				await cleanupPreviewSession(client, sessionId);
 				throw new CLIError(
 					"Server start command ID was not returned by the API.",
 					"SERVER_START_FAILED",
@@ -457,21 +433,22 @@ export const previewCommand = new Command("preview")
 						await sleep(DEV_SERVER_VERIFY_INTERVAL_MS);
 					}
 
-					const commandStatus = await api.get<CommandStatusResponse>(
-						`/api/mcp/sessions/${sessionId}/commands/${serverCmdId}?statusOnly=true`,
+					const commandStatus = await client.getCommandStatus(
+						sessionId,
+						serverCmdId,
 					);
 
 					if (commandStatus.exitCode === null) {
 						continue;
 					}
 
-					const commandOutput = await api
-						.get<CommandOutputResponse>(
-							`/api/mcp/sessions/${sessionId}/commands/${serverCmdId}`,
-						)
-						.catch(() => null);
+					const commandOutput = await getCommandOutputOrNull(
+						client,
+						sessionId,
+						serverCmdId,
+					);
 
-					await cleanupPreviewSession(sessionId);
+					await cleanupPreviewSession(client, sessionId);
 					throw new CLIError(
 						`Dev server command exited during startup with code ${commandStatus.exitCode}.`,
 						"SERVER_START_FAILED",
@@ -531,10 +508,7 @@ export const previewCommand = new Command("preview")
 					const file = await collectSingleFile(projectRoot, relativePath);
 					if (file) {
 						try {
-							await api.post<WriteFilesResponse>(
-								`/api/mcp/sessions/${sessionId}/files`,
-								{ files: [file] },
-							);
+							await client.writeFiles(sessionId, [file]);
 							console.log(`  Synced: ${relativePath}`);
 						} catch {
 							console.error(`  Failed to sync: ${relativePath}`);
@@ -569,7 +543,7 @@ export const previewCommand = new Command("preview")
 									watcher.close().catch(() => undefined),
 									SHUTDOWN_STEP_TIMEOUT_MS,
 								);
-								await cleanupPreviewSession(sessionId);
+								await cleanupPreviewSession(client, sessionId);
 							})(),
 							SHUTDOWN_MAX_WAIT_MS,
 							{
@@ -588,8 +562,9 @@ export const previewCommand = new Command("preview")
 						if (shuttingDown) return;
 						void (async () => {
 							try {
-								const commandStatus = await api.get<CommandStatusResponse>(
-									`/api/mcp/sessions/${sessionId}/commands/${serverCmdId}?statusOnly=true`,
+								const commandStatus = await client.getCommandStatus(
+									sessionId,
+									serverCmdId,
 								);
 								if (commandStatus.exitCode === null) {
 									return;
@@ -602,6 +577,7 @@ export const previewCommand = new Command("preview")
 								}
 
 								const commandOutput = await getCommandOutputOrNull(
+									client,
 									sessionId,
 									serverCmdId,
 								);

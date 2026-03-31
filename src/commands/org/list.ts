@@ -1,10 +1,9 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatTable } from "../../lib/output.js";
-import type { Org, OrgListResponse } from "../../types/index.js";
 
 export const listCommand = new Command("list")
 	.description("List your organizations")
@@ -15,7 +14,8 @@ export const listCommand = new Command("list")
 		try {
 			const spinner = ora("Fetching organizations...").start();
 
-			const result = await api.get<OrgListResponse>("/api/oauth/orgs");
+			const client = await getClient();
+			const result = await client.listOrgs();
 
 			spinner.stop();
 
@@ -24,7 +24,7 @@ export const listCommand = new Command("list")
 			if (json) {
 				formatOutput(
 					{
-						orgs: orgs.map((o: Org) => ({
+						orgs: orgs.map((o) => ({
 							...o,
 							isActive: o.id === activeOrgId,
 						})),
@@ -40,7 +40,7 @@ export const listCommand = new Command("list")
 
 				console.log(chalk.bold("\nOrganizations:\n"));
 
-				const rows = orgs.map((o: Org) => {
+				const rows = orgs.map((o) => {
 					const isActive = o.id === activeOrgId;
 					return [
 						isActive ? chalk.cyan(`* ${o.name}`) : `  ${o.name}`,
@@ -53,7 +53,7 @@ export const listCommand = new Command("list")
 
 				console.log();
 				if (activeOrgId) {
-					const activeOrg = orgs.find((o: Org) => o.id === activeOrgId);
+					const activeOrg = orgs.find((o) => o.id === activeOrgId);
 					if (activeOrg) {
 						console.log(`Active organization: ${chalk.cyan(activeOrg.name)}`);
 					}

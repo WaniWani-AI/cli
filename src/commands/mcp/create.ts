@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import {
 	CONFIG_FILE_NAME,
 	initConfigAt,
@@ -18,7 +18,6 @@ import {
 	runGitWithCredentials,
 } from "../../lib/git-auth.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
-import type { McpRepository } from "../../types/index.js";
 
 /**
  * Load parent .waniwani/settings.json if it exists.
@@ -88,9 +87,8 @@ export const createCommand = new Command("create")
 			// Create repository on backend (GitHub repo created immediately)
 			const spinner = ora("Creating MCP...").start();
 
-			const result = await api.post<McpRepository>("/api/mcp/repositories", {
-				name,
-			});
+			const client = await getClient();
+			const result = await client.createRepository(name);
 
 			// Get authenticated clone context
 			spinner.text = "Cloning repository...";

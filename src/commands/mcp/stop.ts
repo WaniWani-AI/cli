@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../../lib/api.js";
+import { getClient } from "../../lib/client.js";
 import { config } from "../../lib/config.js";
 import { handleError } from "../../lib/errors.js";
 import { formatOutput, formatSuccess } from "../../lib/output.js";
@@ -19,17 +19,17 @@ export const stopCommand = new Command("stop")
 
 			const spinner = ora("Stopping development environment...").start();
 
+			const client = await getClient();
+
 			// Stop server first
 			try {
-				await api.post(`/api/mcp/sessions/${sessionId}/server`, {
-					action: "stop",
-				});
+				await client.stopServer(sessionId);
 			} catch {
 				// Server might not be running, continue
 			}
 
 			// Delete session
-			await api.delete(`/api/mcp/sessions/${sessionId}`);
+			await client.deleteSession(sessionId);
 
 			// Clear session from config
 			await config.setSessionId(null);
