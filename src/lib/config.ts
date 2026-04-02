@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { loadProjectConfig } from "./project-config.js";
 
 export const LOCAL_CONFIG_DIR = ".waniwani";
 export const CONFIG_FILE_NAME = "settings.json";
@@ -101,7 +102,15 @@ class Config {
 
 	async getApiUrl() {
 		if (process.env.WANIWANI_API_URL) return process.env.WANIWANI_API_URL;
+		const projectConfig = await loadProjectConfig();
+		if (projectConfig?.apiUrl) return projectConfig.apiUrl;
 		return (await this.load()).apiUrl;
+	}
+
+	async getApiKey(): Promise<string | null> {
+		if (process.env.WANIWANI_API_KEY) return process.env.WANIWANI_API_KEY;
+		const projectConfig = await loadProjectConfig();
+		return projectConfig?.apiKey ?? null;
 	}
 
 	async clear() {

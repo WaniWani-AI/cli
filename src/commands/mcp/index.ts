@@ -3,6 +3,7 @@ import { cloneCommand } from "./clone.js";
 import { createCommand } from "./create.js";
 import { deleteCommand } from "./delete.js";
 import { fileCommand } from "./file/index.js";
+import { kbCommand } from "./kb/index.js";
 import { listCommand } from "./list.js";
 import { logsCommand } from "./logs.js";
 import { previewCommand } from "./preview.js";
@@ -25,4 +26,5 @@ export const mcpCommand = new Command("mcp")
 	.addCommand(syncCommand)
 	.addCommand(deleteCommand)
 	.addCommand(fileCommand)
+	.addCommand(kbCommand)
 	.addCommand(runCommandCommand);

@@ -48,14 +48,24 @@ async function request<T>(
 		...extraHeaders,
 	};
 
+	let usingApiKey = false;
+
 	if (requireAuth) {
-		const token = await auth.getAccessToken();
-		if (!token) {
-			throw new AuthError(
-				"Not logged in. Run 'waniwani login' to authenticate.",
-			);
+		// Try API key first (from env var or waniwani.config.ts)
+		const apiKey = await config.getApiKey();
+		if (apiKey) {
+			headers.Authorization = `Bearer ${apiKey}`;
+			usingApiKey = true;
+		} else {
+			// Fall back to OAuth
+			const token = await auth.getAccessToken();
+			if (!token) {
+				throw new AuthError(
+					"Not logged in. Run 'waniwani login' to authenticate.",
+				);
+			}
+			headers.Authorization = `Bearer ${token}`;
 		}
-		headers.Authorization = `Bearer ${token}`;
 	}
 
 	const baseUrl = await config.getApiUrl();
@@ -125,6 +135,11 @@ async function request<T>(
 
 		// Handle token expiration
 		if (response.status === 401) {
+			if (usingApiKey) {
+				throw new AuthError(
+					"API key authentication failed. Check your WANIWANI_API_KEY or apiKey in waniwani.config.ts.",
+				);
+			}
 			const refreshed = await auth.tryRefreshToken();
 			if (refreshed) {
 				// Retry with new token

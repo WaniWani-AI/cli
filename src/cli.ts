@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { configCommand } from "./commands/config/index.js";
+import { evalCommand } from "./commands/eval.js";
 import { gitCredentialHelperCommand } from "./commands/git-credential-helper.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
@@ -25,6 +26,7 @@ program.addCommand(logoutCommand);
 program.addCommand(mcpCommand);
 program.addCommand(orgCommand);
 program.addCommand(configCommand);
+program.addCommand(evalCommand);
 
 // Git integration (called by git, not users)
 program.addCommand(gitCredentialHelperCommand);

@@ -28,6 +28,7 @@ src/
 │   ├── api.ts          # API client with auth
 │   ├── auth.ts         # Token management (delegates to config)
 │   ├── config.ts       # Local config (.waniwani/settings.json)
+│   ├── project-config.ts # Project config (waniwani.config.ts)
 │   ├── errors.ts       # Error handling
 │   └── output.ts       # Output formatting
 └── types/              # TypeScript types
@@ -55,13 +56,23 @@ All config is stored locally in `.waniwani/settings.json` (per-project, no globa
 ### API URL Priority
 
 1. **Environment variable**: `WANIWANI_API_URL`
-2. **Config file**: `.waniwani/settings.json` → `apiUrl`
-3. **Default**: `https://app.waniwani.ai`
+2. **Project config**: `waniwani.config.ts` → `apiUrl`
+3. **Config file**: `.waniwani/settings.json` → `apiUrl`
+4. **Default**: `https://app.waniwani.ai`
+
+### Auth Priority
+
+1. **API key**: `WANIWANI_API_KEY` env var → `waniwani.config.ts` → `apiKey`
+2. **OAuth**: `.waniwani/settings.json` → `accessToken` (with auto-refresh on 401)
 
 ### Auth Flow
 
 - `waniwani login` creates `.waniwani/` in current directory if needed
 - `waniwani mcp create` copies parent `.waniwani/` to new project (including auth)
+
+### Project Config (`waniwani.config.ts`)
+
+Optional project-level config file at the repo root, shared with `@waniwani/sdk`. Loaded lazily and cached. See `src/lib/project-config.ts`.
 
 ## Key Patterns
 

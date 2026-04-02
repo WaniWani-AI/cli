@@ -1,10 +1,10 @@
 ---
 name: waniwani-cli
-description: Create and manage MCP servers with local development workflow. Use when the user needs to develop MCP servers, manage sandbox files, or deploy to GitHub and Vercel.
+description: WaniWani CLI overview - authentication, configuration, and global options. Use when the user needs to log in, configure the CLI, or understand the overall CLI structure.
 allowed-tools: Bash(waniwani:*), Write, Read, Glob
 ---
 
-# MCP Development with WaniWani CLI
+# WaniWani CLI
 
 ## Quick Start
 
@@ -15,133 +15,31 @@ cd my-mcp
 waniwani mcp preview            # Start sandbox, sync files, start server, watch for changes
 ```
 
-## Limitations
-
-- **Sandboxes are for MCP servers** - The preview URL serves MCP protocol (SSE), not HTTP. Don't use for static sites or regular web apps.
-- **No persistent storage** - Sandboxes expire after ~30 minutes of inactivity.
-
-## Core Workflow
-
-1. **Login**: `waniwani login` (OAuth2 flow opens browser)
-2. **Initialize**: `waniwani mcp create <name>` (creates GitHub repo + clones locally)
-3. **Develop**: `waniwani mcp preview` (starts sandbox + server + file watcher)
-4. **Edit locally**: Make changes with full IDE support, files auto-sync to sandbox
-5. **Deploy**: `git push origin main` (Vercel auto-deploys via webhook)
-
-## Commands
-
-### Authentication
+## Authentication
 
 ```bash
-waniwani login                  # Login via browser OAuth2 flow
+waniwani login                  # Login via browser OAuth2 PKCE flow
 waniwani login --no-browser     # Get URL without opening browser
 waniwani logout                 # Clear stored credentials
 ```
 
-### Initialize Project
+- `waniwani login` creates `.waniwani/` in the current directory if needed
+- `waniwani mcp create` copies parent `.waniwani/` to new project (including auth tokens)
 
-```bash
-waniwani mcp create <name>        # Create a new MCP and clone it locally
-waniwani mcp clone <name>         # Clone an existing MCP to a local directory
-waniwani mcp clone <name> <dir>   # Clone into a specific directory
-```
+### Auth Priority
 
-`mcp create` creates a new MCP on WaniWani and clones it locally. A git credential helper is configured automatically so `git push` works without extra auth setup.
-
-`mcp clone` clones an existing MCP by name (useful for pulling to a new machine or directory). Also configures the credential helper.
-
-### Development
-
-```bash
-waniwani mcp preview                # Start sandbox + server + file watcher
-waniwani mcp preview --no-watch     # Start without file watching
-waniwani mcp preview --no-logs      # Don't stream logs to terminal
-waniwani mcp preview --mcp-id <id>  # Use specific MCP ID
-```
-
-The `preview` command handles everything:
-1. Creates or resumes the sandbox
-2. Syncs all local files to the sandbox
-3. Starts the MCP server
-4. Watches for file changes and auto-syncs them
-
-### MCP Management
-
-```bash
-waniwani mcp list               # List all MCPs
-waniwani mcp list --all         # Include stopped/expired MCPs
-waniwani mcp use <name>         # Select an MCP for subsequent commands
-waniwani mcp status             # Show current MCP status and server info
-waniwani mcp delete             # Delete MCP from cloud
-```
-
-### Server & Logs
-
-```bash
-waniwani mcp stop               # Stop the running MCP server
-waniwani mcp logs               # Get current logs from the running server
-waniwani mcp logs -f            # Stream logs continuously (follow mode)
-waniwani mcp logs --follow      # Same as -f
-```
-
-**Typical workflow:**
-```bash
-waniwani mcp create my-server     # Create project and clone locally
-cd my-server
-waniwani mcp preview              # Start sandbox + server + file watcher
-# ... edit files locally (auto-synced) ...
-# Ctrl+C to stop
-git add . && git commit -m "Add new tool"
-git push origin main              # Deploy to production
-```
-
-### Testing with MCP Inspector
-
-After starting the server, `waniwani mcp preview` displays an MCP Inspector command you can run to test your tools interactively:
-
-```bash
-npx @anthropic-ai/mcp-inspector@latest "<preview-url>/mcp"
-```
-
-The inspector provides a web UI to:
-- List all available tools
-- Call tools with custom inputs
-- View tool responses
-
-### Deploy & Sync
-
-Deployment uses standard git. The credential helper (configured automatically during `mcp create`/`mcp clone`) provides GitHub auth transparently:
-
-```bash
-git add .
-git commit -m "Add new tool"
-git push origin main              # Vercel auto-deploys via webhook
-```
-
-To pull latest files from the remote:
-```bash
-waniwani mcp sync                 # Pull latest files to local project
-```
-
-### Organization Management
-
-```bash
-waniwani org list                   # List your organizations
-waniwani org switch <name>          # Switch to different org
-```
-
-## Global Options
-
-```bash
-waniwani --json <command>           # Output results as JSON
-waniwani --verbose <command>        # Enable verbose logging
-```
+1. `WANIWANI_API_KEY` environment variable
+2. `waniwani.config.ts` `apiKey` field
+3. OAuth tokens from `.waniwani/settings.json`
 
 ## Configuration
 
-All config is stored locally in `.waniwani/settings.json` (no global config).
+### `.waniwani/settings.json` (per-project, no global config)
 
-### Config File
+```bash
+waniwani config init            # Initialize .waniwani config in current directory
+waniwani config init --force    # Overwrite existing config
+```
 
 | Field | Purpose |
 |-------|---------|
@@ -153,65 +51,34 @@ All config is stored locally in `.waniwani/settings.json` (no global config).
 | `expiresAt` | Token expiry (ISO 8601) |
 | `clientId` | OAuth client ID |
 
-### Auth Flow
+### `waniwani.config.ts` (optional, shared with @waniwani/sdk)
 
-- `waniwani login` creates `.waniwani/` in current directory if needed
-- `waniwani mcp create` copies parent `.waniwani/` to new project (including auth tokens)
-- Git credential helper is configured in `.git/config` for transparent `git push`
+| Field | Purpose |
+|-------|---------|
+| `apiKey` | API key for authentication |
+| `apiUrl` | API base URL |
+| `evals` | Eval configuration |
+| `knowledgeBase` | Knowledge base configuration |
 
-## Local Project Structure
+### API URL Priority
 
-After `waniwani mcp create my-mcp`:
+1. `WANIWANI_API_URL` environment variable
+2. `waniwani.config.ts` `apiUrl` field
+3. `.waniwani/settings.json` `apiUrl` field
+4. Default: `https://app.waniwani.ai`
 
-```
-my-mcp/
-├── .waniwani/
-│   └── settings.json         # MCP ID + auth tokens (auto-generated)
-├── app/
-│   ├── mcp/route.ts          # Register tools & widgets here
-│   └── ({{MCP_NAME}})/       # Widget pages
-├── lib/
-│   └── {{MCP_NAME}}/
-│       ├── tools/            # Your tool implementations
-│       └── widgets/          # Your widget definitions
-├── package.json
-└── CLAUDE.md                 # MCP development guide
-```
+## Global Options
 
-## MCP Template
-
-Projects are initialized with a **pre-configured MCP template** based on Next.js 16, ready for ChatGPT integration. The template is pulled automatically during `waniwani mcp create`.
-
-The template includes tools, widgets, and all framework utilities.
-
-**See the template's CLAUDE.md for:**
-- Project structure and code boundaries
-- How to create tools using `createTool()`
-- How to create widgets with UI that renders in ChatGPT
-- Available React hooks for ChatGPT integration
-- Deployment instructions
-
-## Troubleshooting
-
-### Preview URL shows blank page
-The sandbox serves MCP protocol (SSE), not HTTP. The preview URL is for MCP clients to connect, not for browsers. This is expected behavior.
-
-### Sandbox expired
-Sandboxes expire after ~30 minutes of inactivity. Simply run `waniwani mcp preview` again to resume:
 ```bash
-waniwani mcp preview    # Will create/resume sandbox automatically
+waniwani --json <command>           # Output results as JSON
+waniwani --verbose <command>        # Enable verbose logging
 ```
 
-### Changes not reflected in sandbox
-If you're using `waniwani mcp preview`, changes should auto-sync. If not, restart the preview command:
-```bash
-# Ctrl+C to stop current session
-waniwani mcp preview    # Restart with fresh sync
-```
+## Sub-Skills
 
-### Changes not deployed to production
-Make sure you've pushed your changes to GitHub:
-```bash
-git add . && git commit -m "Update"
-git push origin main
-```
+Detailed command documentation lives in dedicated sub-skills:
+
+- **`mcp/`** — MCP lifecycle, development, and deployment (create, preview, deploy, logs, etc.)
+- **`mcp/file/`** — Sandbox file operations
+- **`mcp/kb/`** — Knowledge base management
+- **`org/`** — Organization management (list, switch)
