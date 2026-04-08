@@ -23,6 +23,7 @@
     "lint:fix": "biome check . --write",
     "prepublishOnly": "bun run build",
     "release": "npm whoami && bun run build && npm version patch && npm publish --access public",
+    "release:patch": "npm whoami && bun run build && npm version patch && npm publish --access public",
     "release:minor": "npm whoami && bun run build && npm version minor && npm publish --access public",
     "release:major": "npm whoami && bun run build && npm version major && npm publish --access public",
     "release:beta": "npm whoami && bun run build && npm version prerelease --preid beta && npm publish --access public --tag beta"
