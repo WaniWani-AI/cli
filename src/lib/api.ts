@@ -70,7 +70,7 @@ async function request<T>(
 	}
 
 	const canFallbackToApiKey =
-		requireAuth && !usingApiKey && (await config.getApiKey()) !== null;
+		requireAuth && !usingApiKey && !!(await config.getApiKey());
 
 	const baseUrl = await config.getApiUrl();
 	const url = `${baseUrl}${path}`;
