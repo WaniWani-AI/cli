@@ -70,7 +70,7 @@ async function request<T>(
 	}
 
 	const canFallbackToApiKey =
-		!usingApiKey && (await config.getApiKey()) !== null;
+		requireAuth && !usingApiKey && (await config.getApiKey()) !== null;
 
 	const baseUrl = await config.getApiUrl();
 	const url = `${baseUrl}${path}`;
@@ -82,7 +82,7 @@ async function request<T>(
 	});
 
 	// On 401 with OAuth token, try refresh then fall back to API key
-	if (response.status === 401 && !usingApiKey) {
+	if (response.status === 401 && requireAuth && !usingApiKey) {
 		const refreshed = await auth.tryRefreshToken();
 		if (refreshed) {
 			const newToken = await auth.getAccessToken();
