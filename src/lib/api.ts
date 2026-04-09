@@ -51,31 +51,62 @@ async function request<T>(
 	let usingApiKey = false;
 
 	if (requireAuth) {
-		// Try API key first (from env var or waniwani.config.ts)
-		const apiKey = await config.getApiKey();
-		if (apiKey) {
-			headers.Authorization = `Bearer ${apiKey}`;
-			usingApiKey = true;
+		// Try OAuth token first (works with all endpoints)
+		const token = await auth.getAccessToken();
+		if (token) {
+			headers.Authorization = `Bearer ${token}`;
 		} else {
-			// Fall back to OAuth
-			const token = await auth.getAccessToken();
-			if (!token) {
+			// Fall back to API key (only works with MCP endpoints)
+			const apiKey = await config.getApiKey();
+			if (apiKey) {
+				headers.Authorization = `Bearer ${apiKey}`;
+				usingApiKey = true;
+			} else {
 				throw new AuthError(
 					"Not logged in. Run 'waniwani login' to authenticate.",
 				);
 			}
-			headers.Authorization = `Bearer ${token}`;
 		}
 	}
+
+	const canFallbackToApiKey =
+		!usingApiKey && (await config.getApiKey()) !== null;
 
 	const baseUrl = await config.getApiUrl();
 	const url = `${baseUrl}${path}`;
 
-	const response = await fetch(url, {
+	let response = await fetch(url, {
 		method,
 		headers,
 		body: body ? JSON.stringify(body) : undefined,
 	});
+
+	// On 401 with OAuth token, try refresh then fall back to API key
+	if (response.status === 401 && !usingApiKey) {
+		const refreshed = await auth.tryRefreshToken();
+		if (refreshed) {
+			const newToken = await auth.getAccessToken();
+			if (newToken) {
+				headers.Authorization = `Bearer ${newToken}`;
+				response = await fetch(url, {
+					method,
+					headers,
+					body: body ? JSON.stringify(body) : undefined,
+				});
+			}
+		}
+
+		if (response.status === 401 && canFallbackToApiKey) {
+			const apiKey = await config.getApiKey();
+			headers.Authorization = `Bearer ${apiKey}`;
+			usingApiKey = true;
+			response = await fetch(url, {
+				method,
+				headers,
+				body: body ? JSON.stringify(body) : undefined,
+			});
+		}
+	}
 
 	// Handle empty responses (204 No Content)
 	if (response.status === 204) {
@@ -133,17 +164,11 @@ async function request<T>(
 			details: errorDetails,
 		};
 
-		// Handle token expiration
 		if (response.status === 401) {
 			if (usingApiKey) {
 				throw new AuthError(
 					"API key authentication failed. Check your WANIWANI_API_KEY or apiKey in waniwani.config.ts.",
 				);
-			}
-			const refreshed = await auth.tryRefreshToken();
-			if (refreshed) {
-				// Retry with new token
-				return request<T>(method, path, options);
 			}
 			throw new AuthError(
 				"Session expired. Run 'waniwani login' to re-authenticate.",
