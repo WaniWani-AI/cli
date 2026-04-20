@@ -58,7 +58,6 @@ waniwani config init --force    # Overwrite existing config
 | `apiKey` | API key for authentication |
 | `apiUrl` | API base URL |
 | `evals` | Eval configuration |
-| `knowledgeBase` | Knowledge base configuration |
 
 ### API URL Priority
 
@@ -80,5 +79,4 @@ Detailed command documentation lives in dedicated sub-skills:
 
 - **`mcp/`** — MCP lifecycle, development, and deployment (create, preview, deploy, logs, etc.)
 - **`mcp/file/`** — Sandbox file operations
-- **`mcp/kb/`** — Knowledge base management
 - **`org/`** — Organization management (list, switch)

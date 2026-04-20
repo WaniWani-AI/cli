@@ -25,9 +25,6 @@ export interface ProjectConfig {
 		scenarios?: string;
 		mcpServerUrl?: string;
 	};
-	knowledgeBase?: {
-		dir?: string;
-	};
 }
 
 const DEFAULT_CONFIG_PATH = "waniwani.config.ts";
