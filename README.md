@@ -5,9 +5,9 @@
 
 The official CLI for **[WaniWani](https://app.waniwani.ai)** — the open-source toolkit for building **MCP funnels**: multi-step conversational flows (sales, lead generation, booking, quotes) that run as a single MCP tool inside ChatGPT, Claude, Cursor, and any MCP-capable client.
 
-`waniwani` connects a local repo to a WaniWani agent in one command, runs your MCP server against the hosted playground, and removes the boilerplate of provisioning GitHub + Vercel + API keys.
+`waniwani` connects a local repo to a WaniWani agent in one command, runs your MCP server against the hosted playground.
 
-If you're building an MCP server with [`@waniwani/sdk`](https://www.npmjs.com/package/@waniwani/sdk) (or any MCP runtime), this CLI is the fastest way to wire it to the WaniWani platform without touching a dashboard.
+If you're building an MCP distribution server with the [`@waniwani/sdk`](https://www.npmjs.com/package/@waniwani/sdk), this CLI is the fastest way to wire it to the WaniWani platform without touching a dashboard.
 
 ## Install
 
