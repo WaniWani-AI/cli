@@ -63,6 +63,10 @@ class AuthManager {
 					grant_type: "refresh_token",
 					refresh_token: refreshToken,
 					client_id: clientId,
+					// RFC 8707 — required to get a JWT-format access token.
+					// Without it the OAuth server returns an opaque token that
+					// fails JWKS validation on subsequent API calls.
+					resource: apiUrl,
 				}).toString(),
 			});
 
