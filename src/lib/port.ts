@@ -7,7 +7,10 @@ export function isPortAvailable(port: number): Promise<boolean> {
 		server.once("listening", () => {
 			server.close(() => resolve(true));
 		});
-		server.listen(port, "127.0.0.1");
+		// Bind to the wildcard (matches how Next.js / most Node servers bind),
+		// so an existing process on `::` or `0.0.0.0` is correctly detected as a
+		// conflict. Binding to 127.0.0.1 misses IPv6-wildcard listeners.
+		server.listen(port);
 	});
 }
 
