@@ -22,10 +22,12 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "prepublishOnly": "bun run build",
-    "release": "npm whoami && bun run build && npm version patch && npm publish --access public",
-    "release:minor": "npm whoami && bun run build && npm version minor && npm publish --access public",
-    "release:major": "npm whoami && bun run build && npm version major && npm publish --access public",
-    "release:beta": "npm whoami && bun run build && npm version prerelease --preid beta && npm publish --access public --tag beta"
+    "release": "npm run release:patch",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags",
+    "release:beta": "npm version prerelease --preid beta && git push --follow-tags",
+    "release:alpha": "npm version prerelease --preid alpha && git push --follow-tags"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",

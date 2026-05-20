@@ -14,11 +14,7 @@ const CONFIG_DIR_MODE = 0o700;
 const CONFIG_FILE_MODE = 0o600;
 
 const ConfigSchema = z.object({
-	// Settings
-	sessionId: z.string().nullable().default(null),
-	mcpId: z.string().nullable().default(null),
 	apiUrl: z.string().default(DEFAULT_API_URL),
-	// Auth (merged from auth.json)
 	accessToken: z.string().nullable().default(null),
 	refreshToken: z.string().nullable().default(null),
 	expiresAt: z.string().nullable().default(null),
@@ -76,28 +72,6 @@ class Config {
 	 */
 	hasConfig(): boolean {
 		return existsSync(this.dir);
-	}
-
-	// --- Settings methods ---
-
-	async getMcpId() {
-		return (await this.load()).mcpId;
-	}
-
-	async setMcpId(id: string | null) {
-		const data = await this.load();
-		data.mcpId = id;
-		await this.save(data);
-	}
-
-	async getSessionId() {
-		return (await this.load()).sessionId;
-	}
-
-	async setSessionId(id: string | null) {
-		const data = await this.load();
-		data.sessionId = id;
-		await this.save(data);
 	}
 
 	async getApiUrl() {

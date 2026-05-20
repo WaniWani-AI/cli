@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ============================================
-// OAuth 2.1 Token Response
-// ============================================
+// OAuth
 
 export const OAuthTokenResponseSchema = z.object({
 	access_token: z.string(),
@@ -10,7 +8,6 @@ export const OAuthTokenResponseSchema = z.object({
 	expires_in: z.number(),
 	token_type: z.string().optional(),
 });
-
 export type OAuthTokenResponse = z.infer<typeof OAuthTokenResponseSchema>;
 
 export const OAuthClientRegistrationResponseSchema = z.object({
@@ -19,128 +16,11 @@ export const OAuthClientRegistrationResponseSchema = z.object({
 	client_id_issued_at: z.number().optional(),
 	client_secret_expires_at: z.number().optional(),
 });
-
 export type OAuthClientRegistrationResponse = z.infer<
 	typeof OAuthClientRegistrationResponseSchema
 >;
 
-// ============================================
-// MCP Sandbox Types (ephemeral dev environment)
-// ============================================
-
-export const McpSandboxSchema = z.object({
-	id: z.string(),
-	mcpRepositoryId: z.string(),
-	sandboxId: z.string(),
-	previewUrl: z.string().url(),
-	serverCmdId: z.string().nullable(),
-	serverRunning: z.boolean(),
-	createdAt: z.string(),
-	expiresAt: z.string().nullable(),
-});
-
-export type McpSandbox = z.infer<typeof McpSandboxSchema>;
-
-// ============================================
-// MCP Repository Types (persistent)
-// ============================================
-
-export const McpRepositorySchema = z.object({
-	id: z.string(),
-	orgId: z.string(),
-	createdBy: z.string(),
-	name: z.string(),
-
-	// GitHub integration
-	githubRepo: z.string(), // e.g., "org/repo-name"
-	githubCloneUrl: z.string().url(), // e.g., "https://github.com/org/repo.git"
-
-	// Vercel integration (null until first deployment)
-	vercelProjectId: z.string().nullable(),
-	productionUrl: z.string().url().nullable(),
-
-	// Timestamps
-	deployedAt: z.string().nullable(),
-	createdAt: z.string(),
-
-	// Active sandbox info (if any)
-	activeSandbox: McpSandboxSchema.nullable(),
-});
-
-export type McpRepository = z.infer<typeof McpRepositorySchema>;
-
-// Repository list response
-export const McpRepositoryListResponseSchema = z.array(McpRepositorySchema);
-export type McpRepositoryListResponse = z.infer<
-	typeof McpRepositoryListResponseSchema
->;
-
-// Sandbox start response
-export const SandboxStartResponseSchema = z.object({
-	sandbox: McpSandboxSchema,
-	previewUrl: z.string().url(),
-});
-export type SandboxStartResponse = z.infer<typeof SandboxStartResponseSchema>;
-
-// Manual deploy response
-export const ManualDeployResponseSchema = z.object({
-	deployment: z.object({
-		id: z.string(),
-		url: z.string().url().nullable(),
-		status: z.enum(["queued", "building", "ready", "error"]),
-		commitSha: z.string().nullable(),
-	}),
-	productionUrl: z.string().url().nullable(),
-});
-export type ManualDeployResponse = z.infer<typeof ManualDeployResponseSchema>;
-
-// ============================================
-// MCP Tool Types
-// ============================================
-
-export interface McpTool {
-	name: string;
-	description: string;
-	inputSchema?: Record<string, unknown>;
-}
-
-export interface McpToolResult {
-	tool: string;
-	input: Record<string, unknown>;
-	result: unknown;
-	duration: number;
-}
-
-export const McpCallResponseSchema = z.object({
-	result: z.unknown(),
-	duration: z.number(),
-});
-
-export type McpCallResponse = z.infer<typeof McpCallResponseSchema>;
-
-// ============================================
-// Deploy Types
-// ============================================
-
-export const DeployResponseSchema = z.object({
-	repository: z.object({
-		url: z.string().url(),
-		fullName: z.string(),
-		owner: z.string(),
-		name: z.string(),
-	}),
-	deployment: z.object({
-		url: z.string().url().optional(),
-		status: z.string(),
-		note: z.string().optional(),
-	}),
-});
-
-export type DeployResponse = z.infer<typeof DeployResponseSchema>;
-
-// ============================================
-// Organization Types
-// ============================================
+// Organizations
 
 export const OrgSchema = z.object({
 	id: z.string(),
@@ -148,152 +28,61 @@ export const OrgSchema = z.object({
 	slug: z.string(),
 	role: z.string(),
 });
-
 export type Org = z.infer<typeof OrgSchema>;
 
 export const OrgListResponseSchema = z.object({
 	orgs: z.array(OrgSchema),
 	activeOrgId: z.string().nullable(),
 });
-
 export type OrgListResponse = z.infer<typeof OrgListResponseSchema>;
 
 export const OrgSwitchResponseSchema = z.object({
 	orgId: z.string(),
 });
-
 export type OrgSwitchResponse = z.infer<typeof OrgSwitchResponseSchema>;
 
-// ============================================
-// Command Result Types
-// ============================================
+// MCP Projects
 
-export interface CommandResult<T = unknown> {
-	success: boolean;
-	data?: T;
-	error?: {
-		code: string;
-		message: string;
-		details?: Record<string, unknown>;
-	};
-}
+export const McpProjectHostingSchema = z.enum(["managed", "external"]);
+export type McpProjectHosting = z.infer<typeof McpProjectHostingSchema>;
 
-// ============================================
-// Sandbox File/Command Operation Types
-// ============================================
-
-// Write files
-export const WriteFilesResponseSchema = z.object({
-	written: z.array(z.string()),
+export const McpProjectSchema = z.object({
+	id: z.string(),
+	orgId: z.string(),
+	name: z.string(),
+	description: z.string().nullable().optional(),
+	hosting: McpProjectHostingSchema,
+	mcpRepositoryId: z.string().nullable().optional(),
+	defaultEnvironmentId: z.string().nullable().optional(),
+	repository: z
+		.object({
+			githubRepo: z.string().optional(),
+			githubCloneUrl: z.string().optional(),
+			productionUrl: z.string().nullable().optional(),
+		})
+		.partial()
+		.optional(),
 });
-export type WriteFilesResponse = z.infer<typeof WriteFilesResponseSchema>;
+export type McpProject = z.infer<typeof McpProjectSchema>;
 
-// Deploy to GitHub response
-export const DeployToGithubResponseSchema = z.object({
-	commitSha: z.string(),
-	githubRepo: z.string(),
-	message: z.string(),
-});
-export type DeployToGithubResponse = z.infer<
-	typeof DeployToGithubResponseSchema
+export const McpProjectListResponseSchema = z.array(McpProjectSchema);
+export type McpProjectListResponse = z.infer<
+	typeof McpProjectListResponseSchema
 >;
 
-// Read file
-export const ReadFileResponseSchema = z.object({
-	path: z.string(),
-	content: z.string(),
-	encoding: z.enum(["utf8", "base64"]),
-	exists: z.boolean(),
+export const CreateMcpProjectResponseSchema = McpProjectSchema.extend({
+	vercelKeySyncFailed: z.boolean().optional(),
+	productionApiKey: z.string().nullable().optional(),
 });
-export type ReadFileResponse = z.infer<typeof ReadFileResponseSchema>;
+export type CreateMcpProjectResponse = z.infer<
+	typeof CreateMcpProjectResponseSchema
+>;
 
-// List files
-export const ListFilesResponseSchema = z.object({
-	path: z.string(),
-	entries: z.array(
-		z.object({
-			name: z.string(),
-			type: z.enum(["file", "directory"]),
-			size: z.number().optional(),
-		}),
-	),
+// Dev sessions
+
+export const DevSessionSchema = z.object({
+	id: z.string(),
+	localUrl: z.string(),
+	lastHeartbeatAt: z.string(),
 });
-export type ListFilesResponse = z.infer<typeof ListFilesResponseSchema>;
-
-// Run command
-export const RunCommandResponseSchema = z.object({
-	exitCode: z.number(),
-	stdout: z.string(),
-	stderr: z.string(),
-	duration: z.number(),
-});
-export type RunCommandResponse = z.infer<typeof RunCommandResponseSchema>;
-
-// ============================================
-// Server Lifecycle Types
-// ============================================
-
-// Server status response
-export const ServerStatusResponseSchema = z.object({
-	running: z.boolean(),
-	cmdId: z.string().optional(),
-	previewUrl: z.string().optional(),
-});
-export type ServerStatusResponse = z.infer<typeof ServerStatusResponseSchema>;
-
-// Server start response
-export const ServerStartResponseSchema = z.object({
-	cmdId: z.string().optional(),
-	previewUrl: z.string().optional(),
-});
-export type ServerStartResponse = z.infer<typeof ServerStartResponseSchema>;
-
-// Server stop response
-export const ServerStopResponseSchema = z.object({
-	stopped: z.boolean(),
-});
-export type ServerStopResponse = z.infer<typeof ServerStopResponseSchema>;
-
-// Log streaming event types
-export const LogEventSchema = z.object({
-	stream: z.enum(["stdout", "stderr"]).optional(),
-	data: z.string().optional(),
-	cmdId: z.string().optional(),
-	exitCode: z.number().optional(),
-	error: z.string().optional(),
-});
-export type LogEvent = z.infer<typeof LogEventSchema>;
-
-// ============================================
-// Clone URL Response (for mcp create)
-// ============================================
-
-export const CloneUrlResponseSchema = z.object({
-	cloneUrl: z.string(),
-});
-export type CloneUrlResponse = z.infer<typeof CloneUrlResponseSchema>;
-
-// Structured ephemeral git auth response
-export const GitAuthResponseSchema = z.object({
-	remoteUrl: z.string(),
-	username: z.string(),
-	token: z.string(),
-	expiresAt: z.string().nullable().optional(),
-});
-export type GitAuthResponse = z.infer<typeof GitAuthResponseSchema>;
-
-// ============================================
-// Pull Files Types (for sync)
-// ============================================
-
-// Recursive file listing - returns all files with their content
-export const PullFilesResponseSchema = z.object({
-	files: z.array(
-		z.object({
-			path: z.string(), // Relative path from sandbox root (e.g., "src/index.ts")
-			content: z.string(),
-			encoding: z.enum(["utf8", "base64"]),
-		}),
-	),
-});
-export type PullFilesResponse = z.infer<typeof PullFilesResponseSchema>;
+export type DevSession = z.infer<typeof DevSessionSchema>;

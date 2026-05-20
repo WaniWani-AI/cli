@@ -20,6 +20,23 @@ export interface ProjectConfig {
 	 * @default https://app.waniwani.ai
 	 */
 	apiUrl?: string;
+
+	/**
+	 * WaniWani org ID this project belongs to. Set by `waniwani connect`.
+	 */
+	orgId?: string;
+
+	/**
+	 * WaniWani MCP project ID. Set by `waniwani connect`.
+	 */
+	projectId?: string;
+
+	/**
+	 * Local port the MCP listens on during `waniwani dev`.
+	 * Defaults to 3000 if unset and no `--port` flag is passed.
+	 */
+	devPort?: number;
+
 	evals?: {
 		dir?: string;
 		scenarios?: string;

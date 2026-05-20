@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import type { Socket } from "node:net";
 import chalk from "chalk";
@@ -6,6 +5,7 @@ import { Command } from "commander";
 import ora from "ora";
 import { api } from "../lib/api.js";
 import { auth } from "../lib/auth.js";
+import { openBrowser } from "../lib/browser.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
@@ -100,17 +100,6 @@ async function registerClient(): Promise<OAuthClientRegistrationResponse> {
 	}
 
 	return response.json() as Promise<OAuthClientRegistrationResponse>;
-}
-
-async function openBrowser(url: string): Promise<void> {
-	const [cmd, ...args] =
-		process.platform === "darwin"
-			? ["open", url]
-			: process.platform === "win32"
-				? ["cmd", "/c", "start", url]
-				: ["xdg-open", url];
-
-	spawn(cmd, args, { stdio: "ignore", detached: true }).unref();
 }
 
 async function waitForCallback(
@@ -376,6 +365,116 @@ async function exchangeCodeForToken(
 	return response.json() as Promise<OAuthTokenResponse>;
 }
 
+/**
+ * Run the OAuth2 PKCE login flow end-to-end: register client, open browser,
+ * wait for callback, exchange code, persist tokens.
+ *
+ * Caller is responsible for any "already logged in" short-circuits and any
+ * pre/post UI (logo, success messages). Throws on failure.
+ */
+export async function runLoginFlow(
+	opts: { openBrowser?: boolean } = {},
+): Promise<{ orgName: string | null }> {
+	const { openBrowser: shouldOpenBrowser = true } = opts;
+
+	const spinner = ora("Registering client...").start();
+
+	const { client_id: clientId } = await registerClient();
+
+	spinner.text = "Preparing authentication...";
+
+	const codeVerifier = generateCodeVerifier();
+	const codeChallenge = await generateCodeChallenge(codeVerifier);
+	const state = generateState();
+
+	const apiUrl = await config.getApiUrl();
+	const authUrl = new URL(`${apiUrl}/api/auth/oauth2/authorize`);
+	authUrl.searchParams.set("client_id", clientId);
+	authUrl.searchParams.set("redirect_uri", CALLBACK_URL);
+	authUrl.searchParams.set("response_type", "code");
+	authUrl.searchParams.set("code_challenge", codeChallenge);
+	authUrl.searchParams.set("code_challenge_method", "S256");
+	authUrl.searchParams.set("state", state);
+	authUrl.searchParams.set("resource", apiUrl); // RFC 8707 - request JWT token
+
+	spinner.stop();
+
+	console.log("Opening browser for authentication...\n");
+	console.log("If the browser doesn't open, visit:\n");
+	console.log(chalk.cyan(`  ${authUrl.toString()}`));
+	console.log();
+
+	const callbackPromise = waitForCallback(state);
+
+	if (shouldOpenBrowser) {
+		await openBrowser(authUrl.toString());
+	}
+
+	spinner.start("Waiting for authorization...");
+
+	const code = await callbackPromise;
+
+	spinner.text = "Exchanging code for token...";
+
+	const tokenResponse = await exchangeCodeForToken(
+		code,
+		codeVerifier,
+		clientId,
+		apiUrl,
+	);
+
+	await config.ensureConfigDir();
+	await auth.setTokens(
+		tokenResponse.access_token,
+		tokenResponse.refresh_token,
+		tokenResponse.expires_in,
+		clientId,
+	);
+
+	spinner.succeed("Logged in successfully!");
+
+	let orgName: string | null = null;
+	try {
+		const { orgs, activeOrgId } =
+			await api.get<OrgListResponse>("/api/oauth/orgs");
+		if (activeOrgId) {
+			const activeOrg = orgs.find((o) => o.id === activeOrgId);
+			if (activeOrg) {
+				orgName = activeOrg.name;
+			}
+		}
+	} catch {
+		// Org info is optional — don't fail login on lookup error.
+	}
+
+	return { orgName };
+}
+
+/**
+ * Guarantee the caller is authenticated before returning. If OAuth tokens are
+ * valid (or refreshable), no-op. Otherwise, run the interactive login flow.
+ *
+ * Always interactive — callers that need a non-interactive path should check
+ * `auth.isLoggedIn()` themselves and short-circuit.
+ *
+ * TODO: when org-scoped API keys land, short-circuit if `WANIWANI_API_KEY` is
+ * set (let machines skip the browser flow entirely).
+ */
+export async function ensureLoggedIn(): Promise<void> {
+	if (await auth.isLoggedIn()) {
+		if (!(await auth.isTokenExpired())) return;
+		if (await auth.tryRefreshToken()) return;
+		console.log(chalk.yellow("Session expired. Starting new login flow..."));
+		await auth.clear();
+	} else {
+		console.log(chalk.gray("Not logged in. Let's get you authenticated..."));
+	}
+	console.log();
+
+	await runLoginFlow();
+	console.log();
+}
+
 export const loginCommand = new Command("login")
 	.description("Log in to WaniWani")
 	.option("--no-browser", "Don't open the browser automatically")
@@ -384,11 +483,8 @@ export const loginCommand = new Command("login")
 		const json = globalOptions.json ?? false;
 
 		try {
-			// Check if already logged in with a valid session
 			if (await auth.isLoggedIn()) {
-				// Check if token is expired
 				if (await auth.isTokenExpired()) {
-					// Try to refresh the token
 					const refreshed = await auth.tryRefreshToken();
 					if (refreshed) {
 						if (json) {
@@ -400,7 +496,6 @@ export const loginCommand = new Command("login")
 						}
 						return;
 					}
-					// Refresh failed, clear and proceed with login
 					if (!json) {
 						console.log(
 							chalk.yellow("Session expired. Starting new login flow..."),
@@ -408,7 +503,6 @@ export const loginCommand = new Command("login")
 					}
 					await auth.clear();
 				} else {
-					// Token is valid
 					if (json) {
 						formatOutput({ alreadyLoggedIn: true }, true);
 					} else {
@@ -426,87 +520,9 @@ export const loginCommand = new Command("login")
 				showLogo();
 			}
 
-			const spinner = ora("Registering client...").start();
-
-			// Register OAuth client dynamically
-			const { client_id: clientId } = await registerClient();
-
-			spinner.text = "Preparing authentication...";
-
-			// Generate PKCE values
-			const codeVerifier = generateCodeVerifier();
-			const codeChallenge = await generateCodeChallenge(codeVerifier);
-			const state = generateState();
-
-			// Build authorization URL
-			const apiUrl = await config.getApiUrl();
-			const authUrl = new URL(`${apiUrl}/api/auth/oauth2/authorize`);
-			authUrl.searchParams.set("client_id", clientId);
-			authUrl.searchParams.set("redirect_uri", CALLBACK_URL);
-			authUrl.searchParams.set("response_type", "code");
-			authUrl.searchParams.set("code_challenge", codeChallenge);
-			authUrl.searchParams.set("code_challenge_method", "S256");
-			authUrl.searchParams.set("state", state);
-			authUrl.searchParams.set("resource", apiUrl); // RFC 8707 - request JWT token
-
-			spinner.stop();
-
-			if (!json) {
-				console.log("Opening browser for authentication...\n");
-				console.log(`If the browser doesn't open, visit:\n`);
-				console.log(chalk.cyan(`  ${authUrl.toString()}`));
-				console.log();
-			}
-
-			// Start callback server and open browser
-			const callbackPromise = waitForCallback(state);
-
-			if (options.browser !== false) {
-				await openBrowser(authUrl.toString());
-			}
-
-			spinner.start("Waiting for authorization...");
-
-			// Wait for callback with auth code
-			const code = await callbackPromise;
-
-			spinner.text = "Exchanging code for token...";
-
-			// Exchange code for token
-			const tokenResponse = await exchangeCodeForToken(
-				code,
-				codeVerifier,
-				clientId,
-				apiUrl, // RFC 8707 resource parameter
-			);
-
-			// Ensure .waniwani/ exists in cwd before storing tokens
-			await config.ensureConfigDir();
-
-			// Store tokens and client ID for refresh
-			await auth.setTokens(
-				tokenResponse.access_token,
-				tokenResponse.refresh_token,
-				tokenResponse.expires_in,
-				clientId,
-			);
-
-			spinner.succeed("Logged in successfully!");
-
-			// Fetch current org info (don't block login on failure)
-			let orgName: string | null = null;
-			try {
-				const { orgs, activeOrgId } =
-					await api.get<OrgListResponse>("/api/oauth/orgs");
-				if (activeOrgId) {
-					const activeOrg = orgs.find((o) => o.id === activeOrgId);
-					if (activeOrg) {
-						orgName = activeOrg.name;
-					}
-				}
-			} catch {
-				// Silently ignore - org info is optional
-			}
+			const { orgName } = await runLoginFlow({
+				openBrowser: options.browser !== false,
+			});
 
 			if (json) {
 				formatOutput(
@@ -522,11 +538,7 @@ export const loginCommand = new Command("login")
 				console.log();
 				console.log("Get started:");
 				console.log(
-					"  waniwani mcp create my-server    Create a new MCP sandbox",
-				);
-				console.log('  waniwani task "Add a tool"       Send tasks to Claude');
-				console.log(
-					"  waniwani org list                View your organizations",
+					"  waniwani connect    Connect this repo to an agent (or create one)",
 				);
 			}
 		} catch (error) {

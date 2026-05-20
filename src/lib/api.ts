@@ -171,6 +171,12 @@ export const api = {
 		options?: { requireAuth?: boolean; headers?: Record<string, string> },
 	) => request<T>("POST", path, { body, ...options }),
 
+	patch: <T>(
+		path: string,
+		body?: unknown,
+		options?: { requireAuth?: boolean; headers?: Record<string, string> },
+	) => request<T>("PATCH", path, { body, ...options }),
+
 	delete: <T>(path: string, options?: { requireAuth?: boolean }) =>
 		request<T>("DELETE", path, options),
 
