@@ -3,7 +3,7 @@ import type { Socket } from "node:net";
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { api } from "../lib/api.js";
+import { api, forceOAuth } from "../lib/api.js";
 import { auth } from "../lib/auth.js";
 import { openBrowser } from "../lib/browser.js";
 import { config } from "../lib/config.js";
@@ -377,6 +377,10 @@ export async function runLoginFlow(
 ): Promise<{ orgName: string | null }> {
 	const { openBrowser: shouldOpenBrowser = true } = opts;
 
+	// Login is always OAuth — strip any API key so the trailing org lookup
+	// (and any later user-scoped calls in the same process) uses tokens.
+	forceOAuth();
+
 	const spinner = ora("Registering client...").start();
 
 	const { client_id: clientId } = await registerClient();
@@ -461,6 +465,10 @@ export async function runLoginFlow(
  * set (let machines skip the browser flow entirely).
  */
 export async function ensureLoggedIn(): Promise<void> {
+	// Any caller of ensureLoggedIn is user-scoped — make sure subsequent API
+	// calls use OAuth, not the project-scoped API key from .env / config.
+	forceOAuth();
+
 	if (await auth.isLoggedIn()) {
 		if (!(await auth.isTokenExpired())) return;
 		if (await auth.tryRefreshToken()) return;

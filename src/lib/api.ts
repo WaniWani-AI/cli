@@ -28,6 +28,20 @@ export class ApiError extends CLIError {
 	}
 }
 
+let _forceOAuth = false;
+
+/**
+ * Force subsequent API calls to use OAuth and ignore any `WANIWANI_API_KEY`
+ * env var or `apiKey` in `waniwani.config.ts`. Effect persists for the
+ * remainder of the process.
+ *
+ * Use in user-scoped commands (`login`, `connect`, `dev`) — these need the
+ * human user's identity, not a project-scoped API key meant for SDK tracking.
+ */
+export function forceOAuth(): void {
+	_forceOAuth = true;
+}
+
 async function request<T>(
 	method: string,
 	path: string,
@@ -51,8 +65,9 @@ async function request<T>(
 	let usingApiKey = false;
 
 	if (requireAuth) {
-		// Try API key first (from env var or waniwani.config.ts)
-		const apiKey = await config.getApiKey();
+		// Try API key first (from env var or waniwani.config.ts), unless the
+		// caller explicitly forced OAuth (user-scoped commands).
+		const apiKey = _forceOAuth ? undefined : await config.getApiKey();
 		if (apiKey) {
 			headers.Authorization = `Bearer ${apiKey}`;
 			usingApiKey = true;
