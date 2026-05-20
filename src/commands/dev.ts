@@ -11,6 +11,7 @@ import {
 	type PackageManager,
 	devCommand as packageManagerDevCommand,
 } from "../lib/package-manager.js";
+import { findAvailablePort, isPortAvailable } from "../lib/port.js";
 import { loadProjectConfig } from "../lib/project-config.js";
 import { runConnectFlow } from "./connect.js";
 import { ensureLoggedIn } from "./login.js";
@@ -127,7 +128,29 @@ export const devCommand = new Command("dev")
 			}
 			projectIdForCleanup = projectId;
 
-			const port = options.port ?? existing?.devPort ?? 3000;
+			// Resolve port. If the user explicitly passed --port, respect that
+			// and fail fast if it's busy. Otherwise auto-find an open port
+			// starting at the configured default — avoids the "default port
+			// busy → MCP picks a different one → CLI polls the wrong port"
+			// blocker.
+			let port: number;
+			if (options.port !== undefined) {
+				if (!(await isPortAvailable(options.port))) {
+					throw new CLIError(
+						`Port ${options.port} is already in use. Pick another with --port or free it up.`,
+						"PORT_IN_USE",
+					);
+				}
+				port = options.port;
+			} else {
+				const startPort = existing?.devPort ?? 3000;
+				port = await findAvailablePort(startPort);
+				if (port !== startPort) {
+					console.log(
+						chalk.gray(`Port ${startPort} is in use — using ${port} instead.`),
+					);
+				}
+			}
 			const localUrl = `http://localhost:${port}`;
 
 			const cwd = process.cwd();
