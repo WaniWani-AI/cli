@@ -110,6 +110,7 @@ class Config {
 		refreshToken: string,
 		expiresIn: number,
 		clientId?: string,
+		apiUrl?: string,
 	): Promise<void> {
 		const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 		const data = await this.load();
@@ -119,7 +120,19 @@ class Config {
 		if (clientId) {
 			data.clientId = clientId;
 		}
+		if (apiUrl) {
+			data.apiUrl = apiUrl;
+		}
 		await this.save(data);
+	}
+
+	/**
+	 * Returns the apiUrl the stored tokens were issued for. Reads settings
+	 * directly — does NOT layer env var / project config on top, unlike
+	 * `getApiUrl()`. Used to detect env drift between logins.
+	 */
+	async getTokenApiUrl(): Promise<string | null> {
+		return (await this.load()).apiUrl;
 	}
 
 	async clearAuth(): Promise<void> {

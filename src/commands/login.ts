@@ -433,6 +433,7 @@ export async function runLoginFlow(
 		tokenResponse.refresh_token,
 		tokenResponse.expires_in,
 		clientId,
+		apiUrl, // Bind tokens to the env that issued them — used for drift detection.
 	);
 
 	spinner.succeed("Logged in successfully!");

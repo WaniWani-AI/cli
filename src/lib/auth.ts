@@ -7,7 +7,14 @@ import { config } from "./config.js";
 class AuthManager {
 	async isLoggedIn(): Promise<boolean> {
 		const token = await config.getAccessToken();
-		return !!token;
+		if (!token) return false;
+		// Detect env drift: tokens issued for a different apiUrl than we'd
+		// currently target. Treat as logged-out so the caller re-logs in
+		// against the correct env.
+		const tokenApiUrl = await config.getTokenApiUrl();
+		const currentApiUrl = await config.getApiUrl();
+		if (tokenApiUrl !== currentApiUrl) return false;
+		return true;
 	}
 
 	async getAccessToken(): Promise<string | null> {
@@ -23,8 +30,15 @@ class AuthManager {
 		refreshToken: string,
 		expiresIn: number,
 		clientId?: string,
+		apiUrl?: string,
 	): Promise<void> {
-		return config.setTokens(accessToken, refreshToken, expiresIn, clientId);
+		return config.setTokens(
+			accessToken,
+			refreshToken,
+			expiresIn,
+			clientId,
+			apiUrl,
+		);
 	}
 
 	async clear(): Promise<void> {
