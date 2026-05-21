@@ -7,7 +7,7 @@ import chalk from "chalk";
  * Project-level configuration loaded from `waniwani.json`.
  *
  * Mirrors `WaniWaniProjectConfig` from `@waniwani/sdk` (and the JSON Schema
- * hosted at https://app.waniwani.ai/waniwani.json) so the CLI can consume the
+ * hosted at https://docs.waniwani.ai/waniwani.json) so the CLI can consume the
  * same config file without depending on the SDK.
  */
 export interface ProjectConfig {
@@ -126,7 +126,7 @@ function warnLegacyOnce(): void {
 	console.warn(
 		chalk.yellow(
 			"waniwani.config.ts is deprecated. Run `waniwani connect` to migrate to waniwani.json " +
-				"(https://app.waniwani.ai/waniwani.json).",
+				"(https://docs.waniwani.ai/waniwani.json).",
 		),
 	);
 }

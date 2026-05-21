@@ -11,13 +11,13 @@ No global config. Everything is local to the project.
 
 ## `waniwani.json`
 
-JSON file at the repo root. Validated against the JSON Schema hosted at `https://app.waniwani.ai/waniwani.json` — set `$schema` for editor autocomplete and validation in VS Code, JetBrains, and any LSP-aware editor. The CLI and the `@waniwani/sdk` runtime both read the same file.
+JSON file at the repo root. Validated against the JSON Schema hosted at `https://docs.waniwani.ai/waniwani.json` — set `$schema` for editor autocomplete and validation in VS Code, JetBrains, and any LSP-aware editor. The CLI and the `@waniwani/sdk` runtime both read the same file.
 
 Full shape:
 
 ```json
 {
-  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "$schema": "https://docs.waniwani.ai/waniwani.json",
   "orgId": "org_...",
   "projectId": "proj_...",
   "apiUrl": "https://app.waniwani.ai",
@@ -29,7 +29,7 @@ Every field except `$schema` is optional. Minimal config after `waniwani connect
 
 ```json
 {
-  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "$schema": "https://docs.waniwani.ai/waniwani.json",
   "orgId": "org_...",
   "projectId": "proj_..."
 }

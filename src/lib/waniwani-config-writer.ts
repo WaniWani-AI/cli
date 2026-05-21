@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const JSON_FILENAME = "waniwani.json";
 const TS_FILENAME = "waniwani.config.ts";
-const SCHEMA_URL = "https://app.waniwani.ai/waniwani.json";
+const SCHEMA_URL = "https://docs.waniwani.ai/waniwani.json";
 
 export interface WriteBindingResult {
 	path: string;

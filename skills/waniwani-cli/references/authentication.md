@@ -82,7 +82,7 @@ Or persist the URL in `waniwani.json` to avoid the env var:
 
 ```json
 {
-  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "$schema": "https://docs.waniwani.ai/waniwani.json",
   "apiUrl": "https://dev.waniwani.ai"
 }
 ```
