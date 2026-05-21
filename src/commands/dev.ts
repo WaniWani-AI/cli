@@ -13,6 +13,7 @@ import {
 } from "../lib/package-manager.js";
 import { findAvailablePort, isPortAvailable } from "../lib/port.js";
 import { loadProjectConfig } from "../lib/project-config.js";
+import { type ActiveTunnel, startQuickTunnel } from "../lib/tunnel.js";
 import { runConnectFlow } from "./connect.js";
 import { ensureLoggedIn } from "./login.js";
 
@@ -51,12 +52,14 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
 function printDevStatus(opts: {
 	port: number;
 	localUrl: string;
+	tunnelUrl: string;
 	playgroundUrl: string;
 	packageManager: PackageManager;
 }): void {
 	console.log();
 	console.log(chalk.bold("WaniWani local dev"));
 	console.log(`  Local server: ${chalk.cyan(opts.localUrl)}`);
+	console.log(`  Tunnel:       ${chalk.cyan(opts.tunnelUrl)}`);
 	console.log(`  Playground:   ${chalk.cyan(opts.playgroundUrl)}`);
 	console.log(`  Package mgr:  ${chalk.gray(opts.packageManager)}`);
 	console.log();
@@ -74,6 +77,7 @@ export const devCommand = new Command("dev")
 		let heartbeatTimer: NodeJS.Timeout | null = null;
 		let sessionId: string | null = null;
 		let projectIdForCleanup: string | null = null;
+		let tunnel: ActiveTunnel | null = null;
 		let cleanedUp = false;
 
 		const cleanup = async (code: number): Promise<void> => {
@@ -90,6 +94,11 @@ export const devCommand = new Command("dev")
 					devSessionApi.delete(projectIdForCleanup, sessionId).catch(() => {}),
 					new Promise((r) => setTimeout(r, CLEANUP_DELETE_TIMEOUT_MS)),
 				]);
+			}
+
+			if (tunnel) {
+				tunnel.stop();
+				tunnel = null;
 			}
 
 			if (child && !child.killed) {
@@ -188,7 +197,23 @@ export const devCommand = new Command("dev")
 				throw err;
 			}
 
-			const session = await devSessionApi.create(projectId, localUrl);
+			// Spin up a Cloudflare quick tunnel so the WaniWani chat backend (which
+			// can't reach `localhost:PORT` from its Vercel runtime) can call into
+			// the local MCP server. The public URL is what `/api/mcp/chat` will
+			// use as the MCP server URL when this dev session is active.
+			const tunnelSpinner = ora("Opening Cloudflare tunnel...").start();
+			try {
+				tunnel = await startQuickTunnel(localUrl);
+				tunnelSpinner.succeed(`Tunnel ready: ${tunnel.publicUrl}`);
+			} catch (err) {
+				tunnelSpinner.fail("Failed to open Cloudflare tunnel");
+				throw err;
+			}
+
+			const session = await devSessionApi.create(projectId, {
+				url: localUrl,
+				tunnelUrl: tunnel.publicUrl,
+			});
 			sessionId = session.id;
 
 			heartbeatTimer = setInterval(() => {
@@ -205,6 +230,7 @@ export const devCommand = new Command("dev")
 			printDevStatus({
 				port,
 				localUrl,
+				tunnelUrl: tunnel.publicUrl,
 				playgroundUrl,
 				packageManager: pm,
 			});

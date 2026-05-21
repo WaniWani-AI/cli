@@ -83,6 +83,7 @@ export type CreateMcpProjectResponse = z.infer<
 export const DevSessionSchema = z.object({
 	id: z.string(),
 	localUrl: z.string(),
+	tunnelUrl: z.string().nullable(),
 	lastHeartbeatAt: z.string(),
 });
 export type DevSession = z.infer<typeof DevSessionSchema>;

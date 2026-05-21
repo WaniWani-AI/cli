@@ -11,8 +11,8 @@ export const devSessionApi = {
 	get: (projectId: string) =>
 		api.get<DevSession | null>(sessionPath(projectId)),
 
-	create: (projectId: string, url: string) =>
-		api.post<DevSession>(sessionPath(projectId), { url }),
+	create: (projectId: string, payload: { url: string; tunnelUrl?: string }) =>
+		api.post<DevSession>(sessionPath(projectId), payload),
 
 	heartbeat: (projectId: string, sessionId: string) =>
 		api.patch<DevSession>(sessionByIdPath(projectId, sessionId)),
