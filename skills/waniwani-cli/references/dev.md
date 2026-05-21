@@ -8,13 +8,13 @@ Run your MCP locally and have the WaniWani playground talk to it directly from y
 waniwani dev [--port <port>]
 ```
 
-Run it from your MCP project directory (the one with `package.json` and `waniwani.config.ts`).
+Run it from your MCP project directory (the one with `package.json` and `waniwani.json`).
 
 ## What it does
 
 1. **Auth check.** Errors out if not logged in.
-2. **Bootstrap config.** If `waniwani.config.ts` is missing or has no `projectId`, runs the `connect` flow inline (org pick → project pick → writes the file).
-3. **Resolves the port.** Precedence: `--port` flag > `devPort` in `waniwani.config.ts` > `3000`.
+2. **Bootstrap config.** If `waniwani.json` is missing or has no `projectId`, runs the `connect` flow inline (org pick → project pick → writes the file).
+3. **Resolves the port.** Precedence: `--port` flag > `devPort` in `waniwani.json` > `3000`.
 4. **Detects your package manager** from your lockfile (`bun.lock`/`bun.lockb` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, else npm).
 5. **Spawns your dev script** as `<pm> run dev` (e.g. `bun run dev`) with `PORT=<port>` in the environment. Stdio is inherited so you see your MCP's logs.
 6. **Polls** `http://localhost:<port>/` until any HTTP response comes back, with a 30s timeout.
@@ -67,7 +67,7 @@ This is a browser security limitation, not something the CLI can work around. Us
 
 ## Config
 
-Set `devPort` in `waniwani.config.ts` to skip the `--port` flag:
+Set `devPort` in `waniwani.json` to skip the `--port` flag:
 
 ```ts
 export default {

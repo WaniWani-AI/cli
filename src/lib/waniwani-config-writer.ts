@@ -1,13 +1,18 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const CONFIG_FILENAME = "waniwani.config.ts";
+const JSON_FILENAME = "waniwani.json";
+const TS_FILENAME = "waniwani.config.ts";
+const SCHEMA_URL = "https://app.waniwani.ai/waniwani.json";
 
 export interface WriteBindingResult {
 	path: string;
 	created: boolean;
 	updated: boolean;
+	/** Path of the legacy `waniwani.config.ts` we removed, if any. */
+	removedLegacy?: string;
+	/** Set when the existing JSON file shape isn't recognized. */
 	manualSnippet?: string;
 }
 
@@ -20,114 +25,103 @@ export async function writeBinding(
 	cwd: string,
 	binding: Binding,
 ): Promise<WriteBindingResult> {
-	const path = join(cwd, CONFIG_FILENAME);
+	const jsonPath = join(cwd, JSON_FILENAME);
+	const tsPath = join(cwd, TS_FILENAME);
+	const hasJson = existsSync(jsonPath);
+	const hasTs = existsSync(tsPath);
 
-	if (!existsSync(path)) {
-		await writeFile(path, renderNewConfig(binding), "utf-8");
-		return { path, created: true, updated: false };
-	}
+	if (hasJson) {
+		const original = await readFile(jsonPath, "utf-8");
+		const merged = mergeIntoJson(original, binding);
 
-	const original = await readFile(path, "utf-8");
-	const merged = mergeBinding(original, binding);
+		if (!merged) {
+			return {
+				path: jsonPath,
+				created: false,
+				updated: false,
+				manualSnippet: renderJsonSnippet(binding),
+			};
+		}
 
-	if (!merged) {
+		if (merged !== original) {
+			await writeFile(jsonPath, merged, "utf-8");
+		}
+
+		const removedLegacy = await maybeRemoveLegacy(tsPath, hasTs);
 		return {
-			path,
+			path: jsonPath,
 			created: false,
-			updated: false,
-			manualSnippet: renderSnippet(binding),
+			updated: merged !== original,
+			removedLegacy,
 		};
 	}
 
-	if (merged !== original) {
-		await writeFile(path, merged, "utf-8");
-	}
-
-	return { path, created: false, updated: merged !== original };
+	await writeFile(jsonPath, renderNewJson(binding), "utf-8");
+	const removedLegacy = await maybeRemoveLegacy(tsPath, hasTs);
+	return {
+		path: jsonPath,
+		created: true,
+		updated: false,
+		removedLegacy,
+	};
 }
 
-function renderNewConfig(binding: Binding): string {
-	return `import type { WaniWaniProjectConfig } from "@waniwani/sdk";
-
-export default {
-	orgId: "${binding.orgId}",
-	projectId: "${binding.projectId}",
-} satisfies WaniWaniProjectConfig;
-`;
+async function maybeRemoveLegacy(
+	tsPath: string,
+	hasTs: boolean,
+): Promise<string | undefined> {
+	if (!hasTs) return undefined;
+	await unlink(tsPath);
+	return tsPath;
 }
 
-function renderSnippet(binding: Binding): string {
-	return `\torgId: "${binding.orgId}",\n\tprojectId: "${binding.projectId}",`;
+function renderNewJson(binding: Binding): string {
+	const body = {
+		$schema: SCHEMA_URL,
+		orgId: binding.orgId,
+		projectId: binding.projectId,
+	};
+	return `${JSON.stringify(body, null, 2)}\n`;
 }
 
-/**
- * Merge orgId/projectId into an existing waniwani.config.ts.
- * Returns null if the file shape isn't recognized so the caller can fall back
- * to a manual snippet.
- */
-function mergeBinding(source: string, binding: Binding): string | null {
-	let result = source;
-
-	const orgIdRegex = /(\borgId\s*:\s*)(["'`])([^"'`]*)(\2)/;
-	const projectIdRegex = /(\bprojectId\s*:\s*)(["'`])([^"'`]*)(\2)/;
-
-	const hasOrgId = orgIdRegex.test(result);
-	const hasProjectId = projectIdRegex.test(result);
-
-	if (hasOrgId) {
-		result = result.replace(orgIdRegex, `$1"${binding.orgId}"`);
-	}
-	if (hasProjectId) {
-		result = result.replace(projectIdRegex, `$1"${binding.projectId}"`);
-	}
-
-	if (hasOrgId && hasProjectId) return result;
-
-	const insertion = insertIntoDefaultExport(
-		result,
-		buildInsertion({
-			includeOrgId: !hasOrgId,
-			includeProjectId: !hasProjectId,
-			binding,
-		}),
-	);
-
-	return insertion;
-}
-
-function buildInsertion({
-	includeOrgId,
-	includeProjectId,
-	binding,
-}: {
-	includeOrgId: boolean;
-	includeProjectId: boolean;
-	binding: Binding;
-}): string {
-	const lines: string[] = [];
-	if (includeOrgId) lines.push(`\torgId: "${binding.orgId}",`);
-	if (includeProjectId) lines.push(`\tprojectId: "${binding.projectId}",`);
-	return lines.join("\n");
+function renderJsonSnippet(binding: Binding): string {
+	return `\t"orgId": "${binding.orgId}",\n\t"projectId": "${binding.projectId}"`;
 }
 
 /**
- * Find `export default {` (with optional `defineConfig(` wrapper) and inject
- * `lines` immediately after the opening brace. Returns null if no match.
+ * Merge orgId/projectId into an existing `waniwani.json`.
+ *
+ * Tries to preserve formatting by round-tripping through JSON.parse only when
+ * needed. Returns null if parsing fails so the caller can fall back to a
+ * manual snippet.
  */
-function insertIntoDefaultExport(source: string, lines: string): string | null {
-	if (!lines) return source;
-
-	const patterns = [
-		/export\s+default\s+(?:defineConfig\s*\(\s*)?\{/,
-		/(?:module\.exports|exports)\s*=\s*\{/,
-	];
-
-	for (const pattern of patterns) {
-		const match = pattern.exec(source);
-		if (!match) continue;
-		const insertAt = match.index + match[0].length;
-		return `${source.slice(0, insertAt)}\n${lines}${source.slice(insertAt)}`;
+function mergeIntoJson(source: string, binding: Binding): string | null {
+	let parsed: Record<string, unknown>;
+	try {
+		parsed = JSON.parse(source);
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			Array.isArray(parsed)
+		) {
+			return null;
+		}
+	} catch {
+		return null;
 	}
 
-	return null;
+	const rest = { ...parsed };
+	const existingSchema = rest.$schema;
+	delete rest.$schema;
+	delete rest.orgId;
+	delete rest.projectId;
+
+	const next: Record<string, unknown> = {
+		$schema: typeof existingSchema === "string" ? existingSchema : SCHEMA_URL,
+		...rest,
+		orgId: binding.orgId,
+		projectId: binding.projectId,
+	};
+
+	return `${JSON.stringify(next, null, 2)}\n`;
 }

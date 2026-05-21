@@ -1,16 +1,22 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import chalk from "chalk";
 
 /**
- * Project-level configuration loaded from `waniwani.config.ts`.
+ * Project-level configuration loaded from `waniwani.json`.
  *
- * Structurally compatible with `WaniWaniProjectConfig` from `@waniwani/sdk`
- * so the CLI can consume the same config file without depending on the SDK.
+ * Mirrors `WaniWaniProjectConfig` from `@waniwani/sdk` (and the JSON Schema
+ * hosted at https://app.waniwani.ai/waniwani.json) so the CLI can consume the
+ * same config file without depending on the SDK.
  */
 export interface ProjectConfig {
+	/** URL of the JSON Schema for editor autocomplete. Ignored at runtime. */
+	$schema?: string;
+
 	/**
-	 * The API key to use for the project.
+	 * Optional API key fallback for legacy `waniwani.config.ts` files.
+	 * New projects should set `WANIWANI_API_KEY` in the environment instead.
 	 */
 	apiKey?: string;
 
@@ -32,57 +38,32 @@ export interface ProjectConfig {
 	projectId?: string;
 
 	/**
-	 * Local port the MCP listens on during `waniwani dev`.
-	 * Defaults to 3000 if unset and no `--port` flag is passed.
+	 * Local port the MCP listens on during `waniwani dev`. Overridden by
+	 * `--port`. Defaults to 3000.
 	 */
 	devPort?: number;
-
-	evals?: {
-		dir?: string;
-		scenarios?: string;
-		mcpServerUrl?: string;
-	};
-	knowledgeBase?: {
-		dir?: string;
-	};
 }
 
-const DEFAULT_CONFIG_PATH = "waniwani.config.ts";
+const JSON_FILENAME = "waniwani.json";
+const LEGACY_TS_FILENAME = "waniwani.config.ts";
 
 let _cachedConfig: ProjectConfig | null | undefined; // undefined = not yet loaded
+let _legacyWarned = false;
 
 /**
- * Dynamically import a TypeScript/JS module file.
- * Works with bun natively; requires tsx or similar for Node.js.
- */
-export async function loadModule<T>(filePath: string): Promise<T> {
-	const absPath = resolve(process.cwd(), filePath);
-	if (!existsSync(absPath)) {
-		throw new Error(`File not found: ${filePath}`);
-	}
-	const module = await import(pathToFileURL(absPath).href);
-	return module.default ?? module;
-}
-
-/**
- * Load and cache the project config from `waniwani.config.ts`.
- * Returns `null` if the file does not exist.
+ * Load and cache the project config.
+ *
+ * Prefers `waniwani.json`; falls back to `waniwani.config.ts` with a one-time
+ * deprecation warning. Returns `null` if neither file exists.
  */
 export async function loadProjectConfig(
 	configPath?: string,
 ): Promise<ProjectConfig | null> {
-	// Skip cache when an explicit path is provided (e.g. eval --config custom.ts)
 	if (!configPath && _cachedConfig !== undefined) return _cachedConfig;
 
-	const filePath = configPath ?? DEFAULT_CONFIG_PATH;
-	const absPath = resolve(process.cwd(), filePath);
-
-	if (!existsSync(absPath)) {
-		if (!configPath) _cachedConfig = null;
-		return null;
-	}
-
-	const config = await loadModule<ProjectConfig>(absPath);
+	const config = configPath
+		? await loadFromPath(resolve(process.cwd(), configPath))
+		: await loadFromDefaults(process.cwd());
 
 	if (!configPath) _cachedConfig = config;
 	return config;
@@ -94,4 +75,58 @@ export async function loadProjectConfig(
  */
 export function getProjectConfig(): ProjectConfig | null {
 	return _cachedConfig ?? null;
+}
+
+async function loadFromDefaults(cwd: string): Promise<ProjectConfig | null> {
+	const jsonPath = resolve(cwd, JSON_FILENAME);
+	if (existsSync(jsonPath)) {
+		return parseJsonConfig(jsonPath);
+	}
+
+	const tsPath = resolve(cwd, LEGACY_TS_FILENAME);
+	if (existsSync(tsPath)) {
+		warnLegacyOnce();
+		return loadTsConfig(tsPath);
+	}
+
+	return null;
+}
+
+async function loadFromPath(absPath: string): Promise<ProjectConfig | null> {
+	if (!existsSync(absPath)) {
+		throw new Error(`File not found: ${absPath}`);
+	}
+	if (absPath.endsWith(".json")) {
+		return parseJsonConfig(absPath);
+	}
+	if (
+		absPath.endsWith(".ts") ||
+		absPath.endsWith(".js") ||
+		absPath.endsWith(".mjs")
+	) {
+		warnLegacyOnce();
+		return loadTsConfig(absPath);
+	}
+	throw new Error(`Unsupported config file extension: ${absPath}`);
+}
+
+function parseJsonConfig(absPath: string): ProjectConfig {
+	const raw = readFileSync(absPath, "utf-8");
+	return JSON.parse(raw) as ProjectConfig;
+}
+
+async function loadTsConfig(absPath: string): Promise<ProjectConfig> {
+	const module = await import(pathToFileURL(absPath).href);
+	return (module.default ?? module) as ProjectConfig;
+}
+
+function warnLegacyOnce(): void {
+	if (_legacyWarned) return;
+	_legacyWarned = true;
+	console.warn(
+		chalk.yellow(
+			"waniwani.config.ts is deprecated. Run `waniwani connect` to migrate to waniwani.json " +
+				"(https://app.waniwani.ai/waniwani.json).",
+		),
+	);
 }

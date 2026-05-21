@@ -2,30 +2,21 @@
 
 Two auth modes, picked automatically based on what's available:
 
-- **API key** (preferred for hosted servers / CI) — set `WANIWANI_API_KEY` or put `apiKey` in `waniwani.config.ts`. No login flow needed.
+- **API key** (preferred for hosted servers / CI) — set `WANIWANI_API_KEY`. No login flow needed.
 - **OAuth** (for local dev) — `waniwani login` runs an OAuth2 PKCE flow in the browser, stores tokens in `.waniwani/settings.json`. Tokens auto-refresh on 401.
 
 The CLI checks API key first; if absent, falls back to OAuth. Same priority is used by every command that hits the API.
 
 ## API key
 
-Get a key at [app.waniwani.ai](https://app.waniwani.ai) → Settings → API Keys. Then either:
+Get a key at [app.waniwani.ai](https://app.waniwani.ai) → Settings → API Keys, then:
 
 ```bash
 export WANIWANI_API_KEY=wwk_...
 waniwani <any-command>
 ```
 
-Or in `waniwani.config.ts`:
-
-```ts
-export default {
-  apiKey: process.env.WANIWANI_API_KEY,
-  // ...
-};
-```
-
-The env var route is the right call for CI and any environment where `.waniwani/settings.json` shouldn't exist.
+The env var route is the only way — `waniwani.json` deliberately doesn't carry `apiKey` since the file is meant to be committed. Use the env var for CI and any environment where `.waniwani/settings.json` shouldn't exist.
 
 API keys never expire and never refresh — if a key is rotated, the next request 401s with `API key authentication failed.` and you need to update the env var.
 
@@ -87,13 +78,13 @@ export WANIWANI_API_URL=https://dev.waniwani.ai
 waniwani login
 ```
 
-Or persist the URL in `waniwani.config.ts` to avoid the env var:
+Or persist the URL in `waniwani.json` to avoid the env var:
 
-```ts
-export default {
-  apiUrl: "https://dev.waniwani.ai",
-  // ...
-};
+```json
+{
+  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "apiUrl": "https://dev.waniwani.ai"
+}
 ```
 
 ## When auth fails
@@ -109,6 +100,6 @@ export default {
 ## File locations
 
 - `.waniwani/settings.json` — per-project. Created by `waniwani login`. Auth tokens live here.
-- `waniwani.config.ts` — per-project. Created by `waniwani connect`. Project bindings + optional `apiKey`.
+- `waniwani.json` — per-project. Created by `waniwani connect`. Project bindings (`orgId`, `projectId`), optional `apiUrl`/`devPort`. No secrets.
 
-`.waniwani/` should be `.gitignore`d. `waniwani.config.ts` should be committed.
+`.waniwani/` should be `.gitignore`d. `waniwani.json` should be committed.

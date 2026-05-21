@@ -50,7 +50,7 @@ export const connectCommand = new Command("connect")
 			if (binding.manualSnippet) {
 				console.log(
 					chalk.yellow(
-						"Could not auto-update waniwani.config.ts. Add these lines to your default export:",
+						"Could not auto-update waniwani.json. Add these keys to the root object:",
 					),
 				);
 				console.log();
@@ -62,6 +62,14 @@ export const connectCommand = new Command("connect")
 				formatSuccess(`Updated ${binding.path}`, false);
 			} else {
 				formatSuccess(`${binding.path} already up to date`, false);
+			}
+
+			if (binding.removedLegacy) {
+				console.log(
+					chalk.gray(
+						`Removed legacy ${binding.removedLegacy} — waniwani.json is now the canonical config.`,
+					),
+				);
 			}
 
 			printNextSteps(project);
@@ -78,7 +86,7 @@ export const connectCommand = new Command("connect")
 
 /**
  * Pure interactive flow: pick an org, pick or create a project, write the
- * binding to `waniwani.config.ts`. Used by `connect` and `dev` commands.
+ * binding to `waniwani.json`. Used by `connect` and `dev` commands.
  *
  * Side effects: prompts the user, hits the API, writes a file. Does NOT print
  * "success"-style messages — callers own their UX.
@@ -102,7 +110,7 @@ async function handleExistingBinding(projectId: string): Promise<boolean> {
 	if (!project) {
 		console.log(
 			chalk.yellow(
-				`waniwani.config.ts references project ${projectId} but it could not be found. Re-running connect.`,
+				`waniwani.json references project ${projectId} but it could not be found. Re-running connect.`,
 			),
 		);
 		return true;

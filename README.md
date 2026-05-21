@@ -34,7 +34,7 @@ Requires Node.js 20 or later.
 waniwani login
 
 # 2. Connect this repo to an agent — picks an org, picks or creates an agent,
-#    and writes the binding to waniwani.config.ts
+#    and writes the binding to waniwani.json
 waniwani connect
 
 # 3. Run your MCP locally and open the WaniWani playground against it
@@ -49,7 +49,7 @@ Three commands and your local MCP server is talking to ChatGPT/Claude/Cursor thr
 |---|---|
 | `waniwani login` | OAuth2 PKCE login. Opens your browser, stores tokens in `.waniwani/settings.json`. |
 | `waniwani logout` | Clear local credentials. |
-| `waniwani connect` | Interactive: pick an org, pick or create an agent (managed or external), write the binding to `waniwani.config.ts`. |
+| `waniwani connect` | Interactive: pick an org, pick or create an agent (managed or external), write the binding to `waniwani.json`. |
 | `waniwani dev` | Run your MCP locally (`bun dev` / `npm run dev` / etc.), open the WaniWani playground in your browser, and bridge them. |
 
 ### `waniwani connect`
@@ -59,13 +59,13 @@ Two flavors of agents:
 - **Managed** — WaniWani provisions a GitHub repo + Vercel project pre-wired with the [MCP distribution template](https://github.com/WaniWani-AI/mcp-distribution-template), API keys, and auto-deploys. Push to `main`, it deploys.
 - **External** — You host the MCP server (Docker, Cloudflare Workers, your own infra). The CLI registers it with WaniWani and gives you a production API key to set as `WANIWANI_API_KEY`.
 
-The CLI writes `orgId` and `projectId` to `waniwani.config.ts` so subsequent commands (and the SDK at runtime) pick them up automatically.
+The CLI writes `orgId` and `projectId` to `waniwani.json` so subsequent commands (and the SDK at runtime) pick them up automatically.
 
 ### `waniwani dev`
 
 Spawns your local dev server (auto-detects `bun` / `pnpm` / `yarn` / `npm`), waits for it to bind to the port, creates a dev session against the WaniWani platform, and opens the playground with `localMode=1` so chat traffic routes to `localhost:3000` instead of your production deployment. Ctrl-C cleans everything up.
 
-Override the port with `-p / --port <port>`, or set `devPort` in `waniwani.config.ts`.
+Override the port with `-p / --port <port>`, or set `devPort` in `waniwani.json`.
 
 ## Configuration
 
@@ -87,7 +87,7 @@ Stored in `.waniwani/settings.json` (per repo, gitignored):
 
 Tokens auto-refresh on 401. Switch staging/production with `WANIWANI_API_URL`.
 
-### Project config (`waniwani.config.ts`)
+### Project config (`waniwani.json`)
 
 Shared with [`@waniwani/sdk`](https://www.npmjs.com/package/@waniwani/sdk). `waniwani connect` writes `orgId` and `projectId`; you can add anything else the SDK supports:
 
@@ -125,7 +125,7 @@ If you're [Claude Code](https://claude.com/claude-code), Cursor, or another AI c
 
 1. `npm i -g @waniwani/cli` (or `bun add -g @waniwani/cli`)
 2. `waniwani login`
-3. `waniwani connect` — picks an org and an agent interactively; writes `waniwani.config.ts`
+3. `waniwani connect` — picks an org and an agent interactively; writes `waniwani.json`
 4. `waniwani dev` — runs the user's existing dev script, bridges it to the playground
 
 The CLI assumes the user already has an MCP server in the cwd (or will scaffold one with [`@waniwani/sdk`](https://docs.waniwani.ai)). It does not generate code on its own — pair it with the SDK or the [MCP distribution template](https://github.com/WaniWani-AI/mcp-distribution-template).

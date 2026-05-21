@@ -15,11 +15,11 @@ Expect a `dev` script that starts an HTTP server (e.g. `next dev`, `bun run scri
 Also check for an existing config:
 
 ```bash
-ls .waniwani waniwani.config.ts 2>/dev/null
+ls .waniwani waniwani.json 2>/dev/null
 ```
 
 - Both exist → user has done this before. Skip to Step 4.
-- Only `waniwani.config.ts` exists → likely committed without auth. Run Step 2 (login) only.
+- Only `waniwani.json` exists → likely committed without auth. Run Step 2 (login) only.
 - Neither exists → fresh setup. Continue to Step 2.
 
 ## Step 2: Log in
@@ -58,14 +58,14 @@ What happens (interactive):
 2. **Project pick** — lists existing projects. Two extra options:
    - **+ Create new managed agent** — WaniWani provisions a GitHub repo + Vercel project. Use when the user wants WaniWani to host the MCP.
    - **+ Create new external agent** — User hosts the MCP themselves. Returns a production API key (shown once) for the hosted server's `WANIWANI_API_KEY`. Use this for projects already in the user's repo.
-3. **Writes** `waniwani.config.ts` at the repo root with `orgId` and `projectId`. If the file exists, it merges into the default export; if it can't (unusual file shape), it prints a snippet for manual paste.
+3. **Writes** `waniwani.json` at the repo root with `orgId` and `projectId`. If the file exists, it merges into the default export; if it can't (unusual file shape), it prints a snippet for manual paste.
 
 For an existing repo with an MCP server already in it, **external** is the right choice. Only suggest **managed** if the user wants WaniWani to scaffold and host a brand-new project.
 
 After connect:
 
 ```bash
-cat waniwani.config.ts
+cat waniwani.json
 ```
 
 Verify `orgId` and `projectId` are present.
@@ -107,7 +107,7 @@ This confirms the round-trip — browser → localhost → MCP → response → 
 
 | User asks | Do |
 |---|---|
-| "Can I use a different port?" | `waniwani dev --port 3001`, or set `devPort: 3001` in `waniwani.config.ts` |
+| "Can I use a different port?" | `waniwani dev --port 3001`, or set `devPort: 3001` in `waniwani.json` |
 | "Why does Safari not work?" | Browser security limit on `https → http://localhost`. Use Chrome/Firefox. See [references/dev.md](../references/dev.md). |
 | "How do I deploy this?" | The CLI doesn't deploy. Managed agents auto-deploy on push (Vercel hook). External agents deploy with their own infra. |
 | "Can I switch to staging?" | `waniwani logout && export WANIWANI_API_URL=https://dev.waniwani.ai && waniwani login`. See [references/configuration.md](../references/configuration.md). |
@@ -115,6 +115,6 @@ This confirms the round-trip — browser → localhost → MCP → response → 
 
 ## When to break out of the playbook
 
-- **The user already has `WANIWANI_API_KEY` in their env** (e.g. CI or hosted server context). Skip `waniwani login` entirely — API key auth bypasses OAuth. Their `waniwani.config.ts` may not need `orgId`/`projectId` either if they only call SDK code, not the CLI.
+- **The user already has `WANIWANI_API_KEY` in their env** (e.g. CI or hosted server context). Skip `waniwani login` entirely — API key auth bypasses OAuth. Their `waniwani.json` may not need `orgId`/`projectId` either if they only call SDK code, not the CLI.
 - **The user only wants to run their MCP locally without the playground**. The CLI isn't needed at all — they just `bun run dev` directly. `waniwani dev` exists specifically for the playground integration.
 - **The user is building a managed agent from scratch**. Direct them to the SDK's `initialize` playbook (in the `@waniwani/sdk` skill) for scaffolding the project itself; the CLI commands here are about linking an existing project, not creating one.

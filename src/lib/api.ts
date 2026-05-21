@@ -32,7 +32,7 @@ let _forceOAuth = false;
 
 /**
  * Force subsequent API calls to use OAuth and ignore any `WANIWANI_API_KEY`
- * env var or `apiKey` in `waniwani.config.ts`. Effect persists for the
+ * env var or `apiKey` in `waniwani.json`. Effect persists for the
  * remainder of the process.
  *
  * Use in user-scoped commands (`login`, `connect`, `dev`) — these need the
@@ -65,7 +65,7 @@ async function request<T>(
 	let usingApiKey = false;
 
 	if (requireAuth) {
-		// Try API key first (from env var or waniwani.config.ts), unless the
+		// Try API key first (from env var or waniwani.json), unless the
 		// caller explicitly forced OAuth (user-scoped commands).
 		const apiKey = _forceOAuth ? undefined : await config.getApiKey();
 		if (apiKey) {
@@ -152,7 +152,7 @@ async function request<T>(
 		if (response.status === 401) {
 			if (usingApiKey) {
 				throw new AuthError(
-					"API key authentication failed. Check your WANIWANI_API_KEY or apiKey in waniwani.config.ts.",
+					"API key authentication failed. Check your WANIWANI_API_KEY or apiKey in waniwani.json.",
 				);
 			}
 			const refreshed = await auth.tryRefreshToken();

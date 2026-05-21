@@ -5,64 +5,49 @@ Two layers, both per-project at the repo root:
 | File | Purpose | Created by | Commit? |
 |---|---|---|---|
 | `.waniwani/settings.json` | OAuth tokens + default API URL | `waniwani login` | **No** — `.gitignore` it |
-| `waniwani.config.ts` | Project bindings + optional API key, port | `waniwani connect` | **Yes** |
+| `waniwani.json` | Project bindings + optional API key, port | `waniwani connect` | **Yes** |
 
 No global config. Everything is local to the project.
 
-## `waniwani.config.ts`
+## `waniwani.json`
 
-TypeScript file at the repo root. Default-exports an object structurally compatible with `WaniWaniProjectConfig` from `@waniwani/sdk` (so the CLI and SDK read the same file).
+JSON file at the repo root. Validated against the JSON Schema hosted at `https://app.waniwani.ai/waniwani.json` — set `$schema` for editor autocomplete and validation in VS Code, JetBrains, and any LSP-aware editor. The CLI and the `@waniwani/sdk` runtime both read the same file.
 
-Full schema:
+Full shape:
 
-```ts
-export default {
-  // Auth — env var WANIWANI_API_KEY takes precedence over this
-  apiKey: process.env.WANIWANI_API_KEY,
-
-  // API URL — defaults to https://app.waniwani.ai
-  // Env var WANIWANI_API_URL takes precedence
-  apiUrl: "https://app.waniwani.ai",
-
-  // Set by `waniwani connect`
-  orgId: "org_...",
-  projectId: "proj_...",
-
-  // Optional: default port for `waniwani dev` (defaults to 3000)
-  // --port flag overrides this
-  devPort: 3000,
-
-  // Used by other tooling (SDK, dashboard sync) — not the CLI directly
-  evals: {
-    dir: "./evals",
-    scenarios: "scenarios.ts",
-    mcpServerUrl: "http://localhost:3000/mcp",
-  },
-  knowledgeBase: {
-    dir: "./knowledge-base",
-  },
-};
+```json
+{
+  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "orgId": "org_...",
+  "projectId": "proj_...",
+  "apiUrl": "https://app.waniwani.ai",
+  "devPort": 3000
+}
 ```
 
-Every field is optional. Minimal config after `waniwani connect`:
+Every field except `$schema` is optional. Minimal config after `waniwani connect`:
 
-```ts
-export default {
-  orgId: "org_...",
-  projectId: "proj_...",
-};
+```json
+{
+  "$schema": "https://app.waniwani.ai/waniwani.json",
+  "orgId": "org_...",
+  "projectId": "proj_..."
+}
 ```
 
-The CLI only reads four fields: `apiKey`, `apiUrl`, `orgId`, `projectId`, `devPort`. Everything else is for the SDK or the dashboard sync.
+`apiKey` is sourced from `WANIWANI_API_KEY` in the environment — JSON can't reference env vars, and keys shouldn't sit in checked-in files anyway.
 
 ### How `waniwani connect` writes this file
 
-- File doesn't exist → creates it with `orgId` + `projectId`.
-- File exists, default export is an object literal → injects/updates the two keys in place. Comments and other fields are preserved.
-- File exists, default export is wrapped in `defineConfig(...)` → same in-place injection.
-- File exists in some other shape → prints a snippet for manual paste.
+- `waniwani.json` doesn't exist → creates it with `$schema`, `orgId`, `projectId`.
+- `waniwani.json` exists → merges `orgId`/`projectId` in (preserves all other keys). If parsing fails, prints a snippet for manual paste.
+- Legacy `waniwani.config.ts` exists → after writing `waniwani.json`, deletes the `.ts` file. Print confirms the removal.
 
 You can edit the file by hand at any time. The CLI won't complain about extra fields.
+
+### Legacy `waniwani.config.ts`
+
+Older projects shipped a `waniwani.config.ts` with `defineConfig({...})` from `@waniwani/sdk`. The CLI still reads it as a fallback (with a deprecation warning on stderr), but new writes always produce `waniwani.json`. Run `waniwani connect` once to migrate.
 
 ## `.waniwani/settings.json`
 
@@ -93,23 +78,22 @@ JSON file managed entirely by the CLI. Schema:
 ### API key (auth)
 
 1. `WANIWANI_API_KEY` env var
-2. `apiKey` field in `waniwani.config.ts`
 
-If neither is set, OAuth token from `.waniwani/settings.json` is used. See [authentication.md](authentication.md) for the OAuth flow.
+If unset, OAuth token from `.waniwani/settings.json` is used. See [authentication.md](authentication.md) for the OAuth flow.
 
 ### API URL
 
 1. `WANIWANI_API_URL` env var
-2. `apiUrl` in `waniwani.config.ts`
+2. `apiUrl` in `waniwani.json`
 3. `apiUrl` in `.waniwani/settings.json`
 4. Default `https://app.waniwani.ai`
 
-The default-of-defaults is prod. Override on a per-shell basis via the env var, or persist in `waniwani.config.ts` for a project pinned to staging.
+The default-of-defaults is prod. Override on a per-shell basis via the env var, or persist in `waniwani.json` for a project pinned to staging.
 
 ### Dev port (`waniwani dev`)
 
 1. `--port <n>` flag
-2. `devPort` in `waniwani.config.ts`
+2. `devPort` in `waniwani.json`
 3. Default `3000`
 
 The resolved port is exported as `PORT=<port>` to the spawned MCP process.
@@ -126,9 +110,9 @@ No other env vars are read by the CLI.
 
 ## Multi-project workflows
 
-Each project has its own `.waniwani/` and its own `waniwani.config.ts`. Switching projects is a `cd`. Switching orgs is `waniwani connect` again (it'll re-prompt for org choice).
+Each project has its own `.waniwani/` and its own `waniwani.json`. Switching projects is a `cd`. Switching orgs is `waniwani connect` again (it'll re-prompt for org choice).
 
-If you work in multiple WaniWani envs (prod + staging), the cleanest setup is one `waniwani.config.ts` per project with `apiUrl` pinned, plus separate `waniwani login` runs in each project directory (each gets its own tokens scoped to the right env).
+If you work in multiple WaniWani envs (prod + staging), the cleanest setup is one `waniwani.json` per project with `apiUrl` pinned, plus separate `waniwani login` runs in each project directory (each gets its own tokens scoped to the right env).
 
 ## What's intentionally not configurable
 
