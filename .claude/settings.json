@@ -3,7 +3,11 @@
     "allow": [
       "Bash(rg -nP \"['\\\\\"\\\\`]/api/mcp/\\(repositories|sessions|simulate\\)\" app/src sdk/src managed local-automations)",
       "Bash(rg -nP \"['\\\\\"\\\\`]/api/mcp/repositories|['\\\\\"\\\\`]/api/mcp/sessions|['\\\\\"\\\\`]/api/mcp/simulate\" app/src)",
-      "Bash(rg -nP \"['\\\\\"\\\\`]/api/mcp/\" sdk/src managed local-automations)"
+      "Bash(rg -nP \"['\\\\\"\\\\`]/api/mcp/\" sdk/src managed local-automations)",
+      "WebFetch(domain:upstash.com)"
     ]
+  },
+  "enabledPlugins": {
+    "security-guidance@claude-plugins-official": true
   }
 }
