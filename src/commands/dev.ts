@@ -13,7 +13,8 @@ import {
 } from "../lib/package-manager.js";
 import { findAvailablePort, isPortAvailable } from "../lib/port.js";
 import { loadProjectConfig } from "../lib/project-config.js";
-import { type ActiveTunnel, startQuickTunnel } from "../lib/tunnel.js";
+import { type ActiveTunnel, startNamedTunnel } from "../lib/tunnel.js";
+import { tunnelApi } from "../lib/tunnel-api.js";
 import { runConnectFlow } from "./connect.js";
 import { ensureLoggedIn } from "./login.js";
 
@@ -197,23 +198,29 @@ export const devCommand = new Command("dev")
 				throw err;
 			}
 
-			// Spin up a Cloudflare quick tunnel so the WaniWani chat backend (which
-			// can't reach `localhost:PORT` from its Vercel runtime) can call into
-			// the local MCP server. The public URL is what `/api/mcp/chat` will
-			// use as the MCP server URL when this dev session is active.
-			const tunnelSpinner = ora("Opening Cloudflare tunnel...").start();
+			// Run the project's pre-provisioned Cloudflare named tunnel so the
+			// WaniWani chat backend (which can't reach `localhost:PORT` from its
+			// Vercel runtime) and external MCP clients (Claude Desktop, ChatGPT)
+			// can both hit a stable `<slug>.waniwani.dev` hostname.
+			//
+			// The hostname was set up at MCP creation. Calling `tunnelApi.start`
+			// repoints the ingress at the current local port and mints a fresh
+			// connector token bound to this tunnel.
+			const tunnelSpinner = ora("Connecting Cloudflare tunnel...").start();
 			try {
-				tunnel = await startQuickTunnel(localUrl);
+				const credentials = await tunnelApi.start(projectId, { port });
+				tunnel = await startNamedTunnel(credentials);
 				tunnelSpinner.succeed(`Tunnel ready: ${tunnel.publicUrl}`);
 			} catch (err) {
-				tunnelSpinner.fail("Failed to open Cloudflare tunnel");
+				tunnelSpinner.fail("Failed to connect Cloudflare tunnel");
 				throw err;
 			}
 
-			const session = await devSessionApi.create(projectId, {
-				url: localUrl,
-				tunnelUrl: tunnel.publicUrl,
-			});
+			// The dev session is just a "dev mode is active for this user"
+			// liveness signal. The public hostname the playground routes to
+			// lives in `mcp_local_tunnels` on the server and comes back in
+			// the response.
+			const session = await devSessionApi.create(projectId);
 			sessionId = session.id;
 
 			heartbeatTimer = setInterval(() => {

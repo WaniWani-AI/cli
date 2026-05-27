@@ -11,8 +11,11 @@ export const devSessionApi = {
 	get: (projectId: string) =>
 		api.get<DevSession | null>(sessionPath(projectId)),
 
-	create: (projectId: string, payload: { url: string; tunnelUrl?: string }) =>
-		api.post<DevSession>(sessionPath(projectId), payload),
+	// No payload — the dev session is a pure liveness signal now. The
+	// project's public hostname comes back in the response (`hostname` field),
+	// sourced from `mcp_local_tunnels` on the server.
+	create: (projectId: string) =>
+		api.post<DevSession>(sessionPath(projectId), {}),
 
 	heartbeat: (projectId: string, sessionId: string) =>
 		api.patch<DevSession>(sessionByIdPath(projectId, sessionId)),

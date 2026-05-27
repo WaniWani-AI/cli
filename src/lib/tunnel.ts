@@ -1,9 +1,11 @@
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { bin, install, Tunnel } from "cloudflared";
+import { bin, install } from "cloudflared";
 
 const TUNNEL_READY_TIMEOUT_MS = 30_000;
 
 export interface ActiveTunnel {
+	hostname: string;
 	publicUrl: string;
 	stop: () => void;
 }
@@ -14,49 +16,80 @@ async function ensureBinary(): Promise<void> {
 }
 
 /**
- * Start a Cloudflare quick tunnel pointing at the given local URL and resolve
- * once the public `https://*.trycloudflare.com` URL has been printed. The
- * caller is responsible for invoking `stop()` on shutdown — the tunnel keeps
- * a child `cloudflared` process alive otherwise.
+ * Run the user's project-scoped Cloudflare named tunnel using a connector
+ * token minted by the WaniWani API. The token encodes which tunnel to serve;
+ * the ingress (which local port to forward to) was set server-side when the
+ * token was issued, so we don't pass `--url` here.
+ *
+ * Resolves once cloudflared confirms an edge connection — anything earlier
+ * would race traffic against connector readiness.
  */
-export async function startQuickTunnel(
-	localUrl: string,
-): Promise<ActiveTunnel> {
+export async function startNamedTunnel(input: {
+	hostname: string;
+	token: string;
+}): Promise<ActiveTunnel> {
 	await ensureBinary();
 
-	const tunnel = Tunnel.quick(localUrl);
+	const child = spawn(
+		bin,
+		["tunnel", "--no-autoupdate", "run", "--token", input.token],
+		{ stdio: ["ignore", "pipe", "pipe"] },
+	);
 
 	return new Promise<ActiveTunnel>((resolve, reject) => {
+		let settled = false;
+
 		const timeout = setTimeout(() => {
-			tunnel.stop();
+			if (settled) return;
+			settled = true;
+			child.kill("SIGTERM");
 			reject(
 				new Error(
-					`Cloudflare tunnel did not report a public URL within ${TUNNEL_READY_TIMEOUT_MS / 1000}s`,
+					`cloudflared did not establish a connection within ${TUNNEL_READY_TIMEOUT_MS / 1000}s`,
 				),
 			);
 		}, TUNNEL_READY_TIMEOUT_MS);
 
-		tunnel.once("url", (url) => {
+		const onReady = (): void => {
+			if (settled) return;
+			settled = true;
 			clearTimeout(timeout);
 			resolve({
-				publicUrl: url,
+				hostname: input.hostname,
+				publicUrl: `https://${input.hostname}`,
 				stop: () => {
-					tunnel.stop();
+					if (!child.killed) child.kill("SIGTERM");
 				},
 			});
-		});
+		};
 
-		tunnel.once("error", (err) => {
+		const handleChunk = (buf: Buffer): void => {
+			// cloudflared logs "Registered tunnel connection" on each successful
+			// edge handshake. The first one means the tunnel is serving traffic.
+			if (buf.toString().includes("Registered tunnel connection")) {
+				onReady();
+			}
+		};
+
+		child.stdout?.on("data", handleChunk);
+		child.stderr?.on("data", handleChunk);
+
+		child.once("error", (err) => {
+			if (settled) return;
+			settled = true;
 			clearTimeout(timeout);
-			tunnel.stop();
 			reject(err);
 		});
 
-		tunnel.once("exit", (code) => {
+		child.once("exit", (code) => {
+			if (settled) return;
+			settled = true;
 			clearTimeout(timeout);
-			if (code !== 0 && code !== null) {
-				reject(new Error(`cloudflared exited with code ${code}`));
-			}
+			reject(
+				new Error(
+					`cloudflared exited with code ${code ?? "unknown"} before reporting a connection`,
+				),
+			);
 		});
 	});
 }

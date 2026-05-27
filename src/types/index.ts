@@ -82,8 +82,11 @@ export type CreateMcpProjectResponse = z.infer<
 
 export const DevSessionSchema = z.object({
 	id: z.string(),
-	localUrl: z.string(),
-	tunnelUrl: z.string().nullable(),
+	// Public hostname of the project's stable Cloudflare named tunnel — null
+	// only for projects predating `mcp_local_tunnels`. The CLI logs this for
+	// the user; the chat route reads it from the server when routing playground
+	// traffic to local.
+	hostname: z.string().nullable(),
 	lastHeartbeatAt: z.string(),
 });
 export type DevSession = z.infer<typeof DevSessionSchema>;
