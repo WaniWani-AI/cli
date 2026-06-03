@@ -4,6 +4,7 @@ import { Command } from "commander";
 import ora from "ora";
 import { api } from "../lib/api.js";
 import { CLIError, handleError } from "../lib/errors.js";
+import { switchToOrg } from "../lib/orgs.js";
 import { formatSuccess } from "../lib/output.js";
 import { loadProjectConfig } from "../lib/project-config.js";
 import {
@@ -156,7 +157,7 @@ async function pickOrg(): Promise<string> {
 		const only = orgs[0];
 		console.log(`Organization: ${chalk.cyan(only.name)}`);
 		if (activeOrgId !== only.id) {
-			await switchOrg(only.id);
+			await switchToOrg(only.id);
 		}
 		return only.id;
 	}
@@ -172,13 +173,9 @@ async function pickOrg(): Promise<string> {
 	});
 
 	if (orgId !== activeOrgId) {
-		await switchOrg(orgId);
+		await switchToOrg(orgId);
 	}
 	return orgId;
-}
-
-async function switchOrg(orgId: string): Promise<void> {
-	await api.post("/api/oauth/orgs/switch", { orgId });
 }
 
 async function pickOrCreateProject(orgId: string): Promise<McpProject> {

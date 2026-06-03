@@ -8,10 +8,17 @@ import { auth } from "../lib/auth.js";
 import { openBrowser } from "../lib/browser.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
+import {
+	bindOrg,
+	isInquirerCancellation,
+	promptForOrg,
+	switchToOrg,
+} from "../lib/orgs.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 import type {
 	OAuthClientRegistrationResponse,
 	OAuthTokenResponse,
+	Org,
 	OrgListResponse,
 } from "../types/index.js";
 
@@ -374,7 +381,11 @@ async function exchangeCodeForToken(
  */
 export async function runLoginFlow(
 	opts: { openBrowser?: boolean } = {},
-): Promise<{ orgName: string | null }> {
+): Promise<{
+	orgName: string | null;
+	orgs: Org[];
+	activeOrgId: string | null;
+}> {
 	const { openBrowser: shouldOpenBrowser = true } = opts;
 
 	// Login is always OAuth — strip any API key so the trailing org lookup
@@ -439,20 +450,78 @@ export async function runLoginFlow(
 	spinner.succeed("Logged in successfully!");
 
 	let orgName: string | null = null;
+	let orgs: Org[] = [];
+	let activeOrgId: string | null = null;
 	try {
-		const { orgs, activeOrgId } =
-			await api.get<OrgListResponse>("/api/oauth/orgs");
+		const result = await api.get<OrgListResponse>("/api/oauth/orgs");
+		orgs = result.orgs;
+		activeOrgId = result.activeOrgId;
 		if (activeOrgId) {
 			const activeOrg = orgs.find((o) => o.id === activeOrgId);
 			if (activeOrg) {
 				orgName = activeOrg.name;
 			}
+			// Bind this grant to the active org. The binding rides the grant's
+			// refresh token, so later web-app org switches (or a concurrent CLI)
+			// can no longer move this token's org — only an explicit
+			// `waniwani switch` does. The just-minted token already represents
+			// this org, so no refresh is needed (and we avoid rotating a
+			// freshly issued session).
+			await bindOrg(activeOrgId);
 		}
 	} catch {
-		// Org info is optional — don't fail login on lookup error.
+		// Org binding is best-effort — don't fail login on lookup/bind error.
+		// An unbound token falls back to the user's active org at mint, and the
+		// next switch/connect re-binds it.
 	}
 
-	return { orgName };
+	return { orgName, orgs, activeOrgId };
+}
+
+/**
+ * After an interactive login, let a multi-org user pick which org the CLI should
+ * act in — the same picker as `waniwani switch`. With a single org (or if the
+ * org lookup failed) there's nothing to choose, so we just echo the bound org.
+ * Login already bound the active org, so keeping it needs no work; only a
+ * different choice triggers a switch (re-bind + refresh). A cancelled picker
+ * (Ctrl-C) leaves the active-org binding in place.
+ */
+async function selectOrgAfterLogin(
+	orgs: Org[],
+	activeOrgId: string | null,
+	orgName: string | null,
+): Promise<void> {
+	const echoActive = () => {
+		if (orgName) {
+			console.log(`  Organization: ${chalk.cyan(orgName)}`);
+		}
+	};
+
+	if (orgs.length <= 1) {
+		echoActive();
+		return;
+	}
+
+	let chosen: Org;
+	try {
+		chosen = await promptForOrg(orgs, activeOrgId);
+	} catch (error) {
+		if (isInquirerCancellation(error)) {
+			echoActive();
+			return;
+		}
+		throw error;
+	}
+
+	if (chosen.id === activeOrgId) {
+		console.log(`  Organization: ${chalk.cyan(chosen.name)}`);
+		return;
+	}
+
+	const spinner = ora(`Switching to ${chosen.name}...`).start();
+	await switchToOrg(chosen.id);
+	spinner.stop();
+	formatSuccess(`Switched to ${chalk.cyan(chosen.name)}`, false);
 }
 
 /**
@@ -529,7 +598,7 @@ export const loginCommand = new Command("login")
 				showLogo();
 			}
 
-			const { orgName } = await runLoginFlow({
+			const { orgName, orgs, activeOrgId } = await runLoginFlow({
 				openBrowser: options.browser !== false,
 			});
 
@@ -541,9 +610,7 @@ export const loginCommand = new Command("login")
 			} else {
 				console.log();
 				formatSuccess("You're now logged in to WaniWani!", false);
-				if (orgName) {
-					console.log(`  Organization: ${chalk.cyan(orgName)}`);
-				}
+				await selectOrgAfterLogin(orgs, activeOrgId, orgName);
 				console.log();
 				console.log("Get started:");
 				console.log(
