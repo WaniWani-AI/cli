@@ -32,7 +32,15 @@ export async function bindOrg(orgId: string): Promise<void> {
  */
 export async function switchToOrg(orgId: string): Promise<void> {
 	await bindOrg(orgId);
-	await auth.tryRefreshToken();
+	const refreshed = await auth.tryRefreshToken();
+	// A failed refresh clears the stored tokens (logs out). Surface that instead
+	// of letting callers report a successful switch over a now-empty session.
+	if (!refreshed) {
+		throw new CLIError(
+			"Switched organization, but the session could not be refreshed. Run `waniwani login` to re-authenticate.",
+			"SWITCH_REFRESH_FAILED",
+		);
+	}
 }
 
 /**
