@@ -385,6 +385,8 @@ export async function runLoginFlow(
 	orgName: string | null;
 	orgs: Org[];
 	activeOrgId: string | null;
+	/** Whether the active org's grant binding actually landed (best-effort). */
+	bound: boolean;
 }> {
 	const { openBrowser: shouldOpenBrowser = true } = opts;
 
@@ -452,6 +454,7 @@ export async function runLoginFlow(
 	let orgName: string | null = null;
 	let orgs: Org[] = [];
 	let activeOrgId: string | null = null;
+	let bound = false;
 	try {
 		const result = await api.get<OrgListResponse>("/api/oauth/orgs");
 		orgs = result.orgs;
@@ -469,6 +472,7 @@ export async function runLoginFlow(
 			// does. The just-minted token already represents this org, so no
 			// refresh is needed (and we avoid rotating a freshly issued session).
 			await bindOrg(id);
+			bound = true;
 		}
 	} catch {
 		// Org binding is best-effort — don't fail login on lookup/bind error.
@@ -476,21 +480,24 @@ export async function runLoginFlow(
 		// next switch/connect re-binds it.
 	}
 
-	return { orgName, orgs, activeOrgId };
+	return { orgName, orgs, activeOrgId, bound };
 }
 
 /**
  * After an interactive login, let a multi-org user pick which org the CLI should
  * act in — the same picker as `waniwani switch`. With a single org (or if the
  * org lookup failed) there's nothing to choose, so we just echo the bound org.
- * Login already bound the active org, so keeping it needs no work; only a
- * different choice triggers a switch (re-bind + refresh). A cancelled picker
- * (Ctrl-C) leaves the active-org binding in place.
+ * Keeping the current org needs no switch; picking a different one triggers a
+ * switch (re-bind + refresh). `bound` says whether login's best-effort bind of
+ * the active org landed — if it didn't, keeping the current org still re-binds
+ * it here so the grant isn't left unbound. A cancelled picker (Ctrl-C) leaves
+ * the active-org binding as-is.
  */
 async function selectOrgAfterLogin(
 	orgs: Org[],
 	activeOrgId: string | null,
 	orgName: string | null,
+	bound: boolean,
 ): Promise<void> {
 	const echoActive = () => {
 		if (orgName) {
@@ -515,6 +522,16 @@ async function selectOrgAfterLogin(
 	}
 
 	if (chosen.id === activeOrgId) {
+		// Login binds the active org best-effort (errors swallowed). If that
+		// didn't land, bind now so keeping the current org still leaves the grant
+		// bound — no refresh, the token already represents this org.
+		if (!bound) {
+			try {
+				await bindOrg(chosen.id);
+			} catch {
+				// Best-effort, same as login; the next connect/switch re-binds.
+			}
+		}
 		console.log(`  Organization: ${chalk.cyan(chosen.name)}`);
 		return;
 	}
@@ -599,7 +616,7 @@ export const loginCommand = new Command("login")
 				showLogo();
 			}
 
-			const { orgName, orgs, activeOrgId } = await runLoginFlow({
+			const { orgName, orgs, activeOrgId, bound } = await runLoginFlow({
 				openBrowser: options.browser !== false,
 			});
 
@@ -611,7 +628,7 @@ export const loginCommand = new Command("login")
 			} else {
 				console.log();
 				formatSuccess("You're now logged in to WaniWani!", false);
-				await selectOrgAfterLogin(orgs, activeOrgId, orgName);
+				await selectOrgAfterLogin(orgs, activeOrgId, orgName, bound);
 				console.log();
 				console.log("Get started:");
 				console.log(
