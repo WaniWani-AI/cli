@@ -455,19 +455,20 @@ export async function runLoginFlow(
 	try {
 		const result = await api.get<OrgListResponse>("/api/oauth/orgs");
 		orgs = result.orgs;
-		activeOrgId = result.activeOrgId;
+		// The org to bind this grant to: the active org the server resolved, or
+		// the sole membership when no active org is set. A multi-org user with no
+		// active org is left for the post-login picker (selectOrgAfterLogin) to
+		// bind, so we don't arbitrarily pick one here.
+		activeOrgId = result.activeOrgId ?? (orgs.length === 1 ? orgs[0].id : null);
 		if (activeOrgId) {
-			const activeOrg = orgs.find((o) => o.id === activeOrgId);
-			if (activeOrg) {
-				orgName = activeOrg.name;
-			}
-			// Bind this grant to the active org. The binding rides the grant's
-			// refresh token, so later web-app org switches (or a concurrent CLI)
-			// can no longer move this token's org — only an explicit
-			// `waniwani switch` does. The just-minted token already represents
-			// this org, so no refresh is needed (and we avoid rotating a
-			// freshly issued session).
-			await bindOrg(activeOrgId);
+			const id = activeOrgId;
+			orgName = orgs.find((o) => o.id === id)?.name ?? null;
+			// Bind this grant to that org. The binding rides the grant's refresh
+			// token, so later web-app org switches (or a concurrent CLI) can no
+			// longer move this token's org — only an explicit `waniwani switch`
+			// does. The just-minted token already represents this org, so no
+			// refresh is needed (and we avoid rotating a freshly issued session).
+			await bindOrg(id);
 		}
 	} catch {
 		// Org binding is best-effort — don't fail login on lookup/bind error.
