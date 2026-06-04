@@ -8,10 +8,17 @@ import { auth } from "../lib/auth.js";
 import { openBrowser } from "../lib/browser.js";
 import { config } from "../lib/config.js";
 import { CLIError, handleError } from "../lib/errors.js";
+import {
+	bindOrg,
+	isInquirerCancellation,
+	promptForOrg,
+	switchToOrg,
+} from "../lib/orgs.js";
 import { formatOutput, formatSuccess } from "../lib/output.js";
 import type {
 	OAuthClientRegistrationResponse,
 	OAuthTokenResponse,
+	Org,
 	OrgListResponse,
 } from "../types/index.js";
 
@@ -374,7 +381,13 @@ async function exchangeCodeForToken(
  */
 export async function runLoginFlow(
 	opts: { openBrowser?: boolean } = {},
-): Promise<{ orgName: string | null }> {
+): Promise<{
+	orgName: string | null;
+	orgs: Org[];
+	activeOrgId: string | null;
+	/** Whether the active org's grant binding actually landed (best-effort). */
+	bound: boolean;
+}> {
 	const { openBrowser: shouldOpenBrowser = true } = opts;
 
 	// Login is always OAuth — strip any API key so the trailing org lookup
@@ -439,20 +452,94 @@ export async function runLoginFlow(
 	spinner.succeed("Logged in successfully!");
 
 	let orgName: string | null = null;
+	let orgs: Org[] = [];
+	let activeOrgId: string | null = null;
+	let bound = false;
 	try {
-		const { orgs, activeOrgId } =
-			await api.get<OrgListResponse>("/api/oauth/orgs");
+		const result = await api.get<OrgListResponse>("/api/oauth/orgs");
+		orgs = result.orgs;
+		// The org to bind this grant to: the active org the server resolved, or
+		// the sole membership when no active org is set. A multi-org user with no
+		// active org is left for the post-login picker (selectOrgAfterLogin) to
+		// bind, so we don't arbitrarily pick one here.
+		activeOrgId = result.activeOrgId ?? (orgs.length === 1 ? orgs[0].id : null);
 		if (activeOrgId) {
-			const activeOrg = orgs.find((o) => o.id === activeOrgId);
-			if (activeOrg) {
-				orgName = activeOrg.name;
-			}
+			const id = activeOrgId;
+			orgName = orgs.find((o) => o.id === id)?.name ?? null;
+			// Bind this grant to that org. The binding rides the grant's refresh
+			// token, so later web-app org switches (or a concurrent CLI) can no
+			// longer move this token's org — only an explicit `waniwani switch`
+			// does. The just-minted token already represents this org, so no
+			// refresh is needed (and we avoid rotating a freshly issued session).
+			await bindOrg(id);
+			bound = true;
 		}
 	} catch {
-		// Org info is optional — don't fail login on lookup error.
+		// Org binding is best-effort — don't fail login on lookup/bind error.
+		// An unbound token falls back to the user's active org at mint, and the
+		// next switch/connect re-binds it.
 	}
 
-	return { orgName };
+	return { orgName, orgs, activeOrgId, bound };
+}
+
+/**
+ * After an interactive login, let a multi-org user pick which org the CLI should
+ * act in — the same picker as `waniwani switch`. With a single org (or if the
+ * org lookup failed) there's nothing to choose, so we just echo the bound org.
+ * Keeping the current org needs no switch; picking a different one triggers a
+ * switch (re-bind + refresh). `bound` says whether login's best-effort bind of
+ * the active org landed — if it didn't, keeping the current org still re-binds
+ * it here so the grant isn't left unbound. A cancelled picker (Ctrl-C) leaves
+ * the active-org binding as-is.
+ */
+async function selectOrgAfterLogin(
+	orgs: Org[],
+	activeOrgId: string | null,
+	orgName: string | null,
+	bound: boolean,
+): Promise<void> {
+	const echoActive = () => {
+		if (orgName) {
+			console.log(`  Organization: ${chalk.cyan(orgName)}`);
+		}
+	};
+
+	if (orgs.length <= 1) {
+		echoActive();
+		return;
+	}
+
+	let chosen: Org;
+	try {
+		chosen = await promptForOrg(orgs, activeOrgId);
+	} catch (error) {
+		if (isInquirerCancellation(error)) {
+			echoActive();
+			return;
+		}
+		throw error;
+	}
+
+	if (chosen.id === activeOrgId) {
+		// Login binds the active org best-effort (errors swallowed). If that
+		// didn't land, bind now so keeping the current org still leaves the grant
+		// bound — no refresh, the token already represents this org.
+		if (!bound) {
+			try {
+				await bindOrg(chosen.id);
+			} catch {
+				// Best-effort, same as login; the next connect/switch re-binds.
+			}
+		}
+		console.log(`  Organization: ${chalk.cyan(chosen.name)}`);
+		return;
+	}
+
+	const spinner = ora(`Switching to ${chosen.name}...`).start();
+	await switchToOrg(chosen.id);
+	spinner.stop();
+	formatSuccess(`Switched to ${chalk.cyan(chosen.name)}`, false);
 }
 
 /**
@@ -529,7 +616,7 @@ export const loginCommand = new Command("login")
 				showLogo();
 			}
 
-			const { orgName } = await runLoginFlow({
+			const { orgName, orgs, activeOrgId, bound } = await runLoginFlow({
 				openBrowser: options.browser !== false,
 			});
 
@@ -541,9 +628,7 @@ export const loginCommand = new Command("login")
 			} else {
 				console.log();
 				formatSuccess("You're now logged in to WaniWani!", false);
-				if (orgName) {
-					console.log(`  Organization: ${chalk.cyan(orgName)}`);
-				}
+				await selectOrgAfterLogin(orgs, activeOrgId, orgName, bound);
 				console.log();
 				console.log("Get started:");
 				console.log(
