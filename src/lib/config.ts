@@ -9,12 +9,15 @@ export const CONFIG_FILE_NAME = "settings.json";
 
 const LOCAL_DIR = join(process.cwd(), LOCAL_CONFIG_DIR);
 const LOCAL_FILE = join(LOCAL_DIR, CONFIG_FILE_NAME);
-const DEFAULT_API_URL = "https://app.waniwani.ai";
+export const DEFAULT_API_URL = "https://app.waniwani.ai";
 const CONFIG_DIR_MODE = 0o700;
 const CONFIG_FILE_MODE = 0o600;
 
 const ConfigSchema = z.object({
 	apiUrl: z.string().default(DEFAULT_API_URL),
+	// The instance the user picked on first run. Persisted so `dev` doesn't
+	// re-ask; kept in sync with `apiUrl` by `setRegion`.
+	region: z.enum(["us", "eu"]).nullable().default(null),
 	accessToken: z.string().nullable().default(null),
 	refreshToken: z.string().nullable().default(null),
 	expiresAt: z.string().nullable().default(null),
@@ -89,6 +92,24 @@ class Config {
 
 	async clear() {
 		await this.save(ConfigSchema.parse({}));
+	}
+
+	// --- Region methods ---
+
+	async getRegion(): Promise<"us" | "eu" | null> {
+		return (await this.load()).region;
+	}
+
+	/**
+	 * Persist the chosen instance. Sets `region` and its `apiUrl` together so
+	 * `getApiUrl()` (settings tier) resolves to the region's URL. The caller
+	 * owns the region→URL mapping (see `src/lib/region.ts`).
+	 */
+	async setRegion(region: "us" | "eu", apiUrl: string): Promise<void> {
+		const data = await this.load();
+		data.region = region;
+		data.apiUrl = apiUrl;
+		await this.save(data);
 	}
 
 	// --- Auth methods ---
