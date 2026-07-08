@@ -13,6 +13,7 @@ import {
 } from "../lib/package-manager.js";
 import { findAvailablePort, isPortAvailable } from "../lib/port.js";
 import { loadProjectConfig } from "../lib/project-config.js";
+import { ensureRegionSelected } from "../lib/region.js";
 import { type ActiveTunnel, startNamedTunnel } from "../lib/tunnel.js";
 import { tunnelApi } from "../lib/tunnel-api.js";
 import { runConnectFlow } from "./connect.js";
@@ -71,6 +72,7 @@ function printDevStatus(opts: {
 export const devCommand = new Command("dev")
 	.description("Run your MCP locally and connect it to the WaniWani playground")
 	.option("-p, --port <port>", "Local port the MCP listens on", parsePort)
+	.option("--region <region>", "Connect to a specific instance (us or eu)")
 	.action(async (options, command) => {
 		const json = command.optsWithGlobals().json ?? false;
 
@@ -123,6 +125,10 @@ export const devCommand = new Command("dev")
 					"INTERACTIVE_REQUIRED",
 				);
 			}
+
+			// First interactive question of the first-run flow: which instance to
+			// connect to. Must run before login so tokens bind to the right apiUrl.
+			await ensureRegionSelected({ region: options.region });
 
 			await ensureLoggedIn();
 
